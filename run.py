@@ -102,7 +102,9 @@ DB_NAME = os.getenv("MYSQL_DB", "codestatic_db")
 mail_conf = ConnectionConfig(
     MAIL_USERNAME=os.getenv("MAIL_USERNAME", "your-email@gmail.com"),
     MAIL_PASSWORD=os.getenv("MAIL_PASSWORD", ""),
-    MAIL_FROM=os.getenv("MAIL_USERNAME", "admin@localhost"),
+    # MAIL_FROM=os.getenv("MAIL_USERNAME", "admin@localhost"),
+    # Change "admin@localhost" to something with a domain
+    MAIL_FROM=os.getenv("MAIL_FROM", "admin@codestatic.ai"),
     MAIL_PORT=587,
     MAIL_SERVER="smtp.gmail.com",
     MAIL_STARTTLS=True,
