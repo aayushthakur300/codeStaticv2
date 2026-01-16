@@ -1,0 +1,1339 @@
+/* --- VARIABLES & THEME CONFIGURATION --- */
+:root {
+    --bg-body: #050505;
+    --bg-panel: #0f0f0f;
+    --bg-editor: #000000;
+    --text-main: #ffffff;
+    --text-muted: #a3a3a3;
+    --border-color: #333333;
+    --gutter-bg: #1a1a1a;
+    
+    --accent-color: #ef4444; 
+    --danger-gradient: linear-gradient(135deg, #b91c1c 0%, #ef4444 100%);
+    --danger-hover: linear-gradient(135deg, #991b1b 0%, #dc2626 100%);
+    --success-color: #22c55e;
+    
+    --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.5);
+    
+    --code-snippet-color: #a5d6ff;
+    --code-snippet-bg: rgba(255,255,255,0.03);
+    --disclaimer-text: #e0e0e0;
+    --disclaimer-bg: rgba(255, 152, 0, 0.05);
+    
+    /* NEW: Plagiarism colors */
+    --plagiarism-low-bg: rgba(34, 197, 94, 0.1); 
+    --plagiarism-low-text: #22c55e;
+    --plagiarism-high-bg: rgba(239, 68, 68, 0.1); 
+    --plagiarism-high-text: #ef4444;
+
+    /* NEW: Compliance colors */
+    --compliance-bg: rgba(34, 197, 94, 0.1); /* Success Green */
+    --compliance-text: #22c55e;
+}
+
+body.light-mode {
+    --bg-body: #f3f4f6;
+    --bg-panel: #ffffff;
+    --bg-editor: #f9fafb;
+    --text-main: #111827;
+    --text-muted: #6b7280;
+    --border-color: #e5e7eb;
+    --gutter-bg: #e5e7eb;
+    --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+    
+    --code-snippet-color: #0366d6; 
+    --code-snippet-bg: #f6f8fa;
+    --disclaimer-text: #333333; 
+    --disclaimer-bg: #fff8e1; 
+    
+    /* NEW: Plagiarism colors (Light) */
+    --plagiarism-low-bg: #e6f7eb; 
+    --plagiarism-low-text: #16a34a;
+    --plagiarism-high-bg: #fee2e2; 
+    --plagiarism-high-text: #dc2626;
+
+    /* NEW: Compliance colors (Light) */
+    --compliance-bg: #e6f7eb;
+    --compliance-text: #16a34a;
+}
+
+* { box-sizing: border-box; }
+body {
+    background-color: var(--bg-body);
+    color: var(--text-main);
+    font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+    margin: 0;
+    padding: 0;
+    min-height: 100vh;
+    overflow-y: hidden; /* Desktop: Hidden scroll on body */
+    display: flex;
+    flex-direction: column;
+    
+    /* DANGEROUS ANIMATION: Subtle red glow on the whole page */
+    animation: danger-glow 3s infinite alternate;
+}
+
+/* KEYFRAMES for Dangerous Animation */
+@keyframes danger-glow {
+    0% { box-shadow: 0 0 5px var(--bg-body); }
+    100% { box-shadow: 0 0 15px rgba(239, 68, 68, 0.7); }
+}
+
+/* --- BLUR & LOADING --- */
+.blur-filter {
+    filter: blur(12px) brightness(0.6);
+    pointer-events: none;
+    transition: filter 0.4s ease-in-out;
+}
+
+.loading-overlay {
+    display: none; 
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 9999;
+    align-items: center;
+    justify-content: center;
+    background: rgba(0, 0, 0, 0.4); 
+    perspective: 1000px; 
+}
+
+/* The Card/Box */
+.loader-content {
+    position: relative;
+    background: #1a1a2e; 
+    padding: 60px 80px;
+    border-radius: 20px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden; 
+    box-shadow: 0 20px 50px rgba(0,0,0,0.8);
+}
+
+/* --- ROTATING BORDER ANIMATION --- */
+.loader-content::before {
+    content: '';
+    position: absolute;
+    width: 150%;
+    height: 150%;
+    background: conic-gradient(
+        transparent, 
+        transparent, 
+        transparent, 
+        var(--accent-color), 
+        #8b5cf6, 
+        #3b82f6  
+    );
+    animation: rotate-border 4s linear infinite;
+    z-index: 0;
+}
+
+/* Inner black box to create the "border" look */
+.loader-content::after {
+    content: '';
+    position: absolute;
+    inset: 4px; 
+    background: #0f0f0f; 
+    border-radius: 16px;
+    z-index: 0;
+}
+
+/* --- TEXT & ICON STYLING --- */
+.loader-content i {
+    position: relative;
+    z-index: 1;
+    font-size: 4rem;
+    background: linear-gradient(135deg, #ef4444, #8b5cf6);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    animation: pulse-glow 2s ease-in-out infinite;
+    filter: drop-shadow(0 0 15px rgba(239, 68, 68, 0.5));
+    margin-bottom: 20px;
+}
+
+.loader-content h2 {
+    position: relative;
+    z-index: 1;
+    color: #ffffff;
+    font-weight: 800;
+    letter-spacing: 3px;
+    margin-top: 10px;
+    font-size: 1.2rem;
+    animation: float-text 3s ease-in-out infinite;
+}
+
+.loader-content p {
+    position: relative;
+    z-index: 1;
+    color: #a3a3a3;
+    font-size: 0.9rem;
+    margin-top: 5px;
+    animation: float-text 3s ease-in-out infinite;
+    animation-delay: 0.2s;
+}
+
+/* --- KEYFRAMES --- */
+@keyframes rotate-border {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+@keyframes pulse-glow {
+    0%, 100% { 
+        transform: scale(1); 
+        filter: drop-shadow(0 0 10px rgba(239, 68, 68, 0.4));
+    }
+    50% { 
+        transform: scale(1.1); 
+        filter: drop-shadow(0 0 25px rgba(139, 92, 246, 0.8));
+    }
+}
+
+@keyframes float-text {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-5px); }
+}
+
+/* --- NAVBAR --- */
+.navbar {
+    height: 70px;
+    background-color: var(--bg-panel);
+    border-bottom: 1px solid var(--border-color);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0 25px;
+    box-shadow: var(--shadow);
+    z-index: 10;
+    flex-shrink: 0;
+}
+
+/* --- NEW PDF BUTTON STYLING (Left of Python Selector) --- */
+.pdf-nav-btn {
+    width: 40px;
+    height: 40px;
+    background: transparent;
+    border: 1px solid var(--border-color);
+    border-radius: 8px; /* Slightly squarer than chat button */
+    color: var(--text-muted);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.1rem;
+    transition: all 0.2s ease-in-out;
+    margin-right: 5px; /* Spacing before selector */
+}
+
+/* Hover Effect for PDF Button */
+.pdf-nav-btn:hover {
+    background: var(--bg-body);
+    color: var(--accent-color); /* Red hover for PDF */
+    border-color: var(--accent-color);
+    box-shadow: 0 0 10px rgba(239, 68, 68, 0.3);
+    transform: translateY(-2px);
+}
+
+.nav-left h1 {
+    font-size: 1.4rem;
+    margin: 0;
+    font-weight: 800;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+    /* DANGEROUS HOVER EFFECT BASE */
+    transition: transform 0.2s ease-out, text-shadow 0.2s ease-out;
+}
+
+/* DANGEROUS HOVER EFFECT on main title */
+.nav-left h1#codestaticTitle:hover {
+    transform: scale(1.05);
+    text-shadow: 0 0 10px var(--accent-color);
+    cursor: pointer;
+}
+
+.nav-left h1 i { color: var(--accent-color); margin-right: 8px; }
+
+/* NEW: Centering the subtitle */
+.subtitle-wrapper {
+    display: block; /* Make it a block element to control its position relative to h1 */
+}
+
+.subtitle { 
+    font-size: 0.75rem; 
+    color: var(--text-muted); 
+    margin: 2px 0 0 0; 
+    text-transform: uppercase; 
+    letter-spacing: 1px;
+    text-align: center; /* Center the text */
+}
+
+.nav-right { 
+    display: flex; 
+    align-items: center; 
+    gap: 15px; 
+}
+
+/* --- AI CHAT BUTTON --- */
+.ai-chat-btn {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #6366f1 0%, #a855f7 100%);
+    color: white;
+    border: none;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.2rem;
+    box-shadow: 0 2px 10px rgba(99, 102, 241, 0.4);
+    transition: transform 0.2s;
+}
+.ai-chat-btn:hover { 
+    transform: scale(1.1); 
+    box-shadow: 0 0 15px rgba(99, 102, 241, 0.8); /* Enhanced hover */
+}
+
+/* --- CHAT WIDGET (RESIZABLE) --- */
+.chat-widget {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    width: 350px;
+    height: 500px;
+    min-width: 250px;
+    min-height: 300px;
+    max-width: 90vw;
+    max-height: 90vh;
+    background: var(--bg-panel);
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+    z-index: 1000;
+    display: none; 
+    flex-direction: column;
+    resize: both; 
+    overflow: hidden; 
+}
+
+.chat-header {
+    background: linear-gradient(135deg, #6366f1 0%, #a855f7 100%);
+    padding: 15px;
+    color: white;
+    font-weight: bold;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-shrink: 0;
+    cursor: move; 
+}
+.chat-header button { background: none; border: none; color: white; cursor: pointer; font-size: 1.1rem; }
+
+.chat-body {
+    flex: 1;
+    padding: 15px;
+    overflow-y: auto;
+    background: var(--bg-body);
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.chat-msg {
+    padding: 10px;
+    border-radius: 8px;
+    font-size: 0.9rem;
+    max-width: 80%;
+    line-height: 1.4;
+}
+.ai-msg { background: var(--bg-panel); color: var(--text-main); align-self: flex-start; border: 1px solid var(--border-color); }
+.user-msg { background: #6366f1; color: white; align-self: flex-end; }
+
+/* --- CHAT INPUT (RESIZABLE) --- */
+.chat-input-area {
+    padding: 10px;
+    background: var(--bg-panel);
+    border-top: 1px solid var(--border-color);
+    display: flex;
+    gap: 10px;
+    align-items: flex-end;
+    flex-shrink: 0;
+}
+
+.chat-input-area textarea {
+    flex: 1;
+    background: var(--bg-body);
+    border: 1px solid var(--border-color);
+    padding: 8px;
+    color: var(--text-main);
+    border-radius: 4px;
+    font-family: 'Segoe UI', sans-serif;
+    resize: vertical; 
+    min-height: 40px;
+    max-height: 150px;
+    outline: none;
+}
+
+.chat-input-area button {
+    background: #6366f1;
+    color: white;
+    border: none;
+    padding: 0 15px;
+    height: 40px; 
+    border-radius: 4px;
+    cursor: pointer;
+}
+
+/* --- CONTROLS --- */
+.control-group {
+    display: flex;
+    gap: 10px;
+    background: var(--bg-body);
+    padding: 5px;
+    border-radius: 8px;
+    border: 1px solid var(--border-color);
+}
+
+select {
+    background: transparent;
+    color: var(--text-main);
+    border: none;
+    padding: 0 15px;
+    font-weight: 600;
+    font-size: 0.9rem;
+    cursor: pointer;
+    outline: none;
+    max-width: 150px;
+}
+option { background: var(--bg-panel); color: var(--text-main); }
+
+button#convertBtn {
+    background: var(--danger-gradient);
+    color: white;
+    border: none;
+    padding: 10px 25px;
+    border-radius: 6px;
+    font-weight: 700;
+    font-size: 0.85rem;
+    cursor: pointer;
+    transition: all 0.2s;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    box-shadow: 0 2px 10px rgba(239, 68, 68, 0.3);
+    white-space: nowrap;
+}
+
+button#convertBtn:hover {
+    background: var(--danger-hover);
+    transform: translateY(-2px); /* Stronger lift */
+    box-shadow: 0 4px 20px rgba(239, 68, 68, 0.7); /* Stronger glow */
+}
+
+.theme-toggle {
+    background: transparent;
+    border: 1px solid var(--border-color);
+    color: var(--text-main);
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: 0.2s;
+}
+.theme-toggle:hover { 
+    background: var(--border-color); 
+    box-shadow: 0 0 10px var(--border-color); /* Enhanced hover */
+}
+
+/* --- MAIN LAYOUT DESKTOP (Split Screen) --- */
+.main-container {
+    display: flex;
+    height: calc(100vh - 70px); 
+    padding: 0;
+    overflow: hidden;
+}
+
+/* LEFT COLUMN - CANDIDATE SUBMISSION (FIXED TO SCREEN FIT) */
+.col-left {
+    width: 50%; 
+    min-width: 300px;
+    padding: 15px;
+    overflow: hidden; /* Don't scroll column, let panel fill height */
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+}
+
+/* Force the left panel to take full height */
+.col-left .code-panel {
+    flex: 1; /* Grow to fill column */
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    margin-bottom: 0;
+}
+
+.col-left .editor-wrapper {
+    flex: 1; /* Editor takes all remaining space */
+    display: flex;
+}
+
+.col-left textarea {
+    height: 100%; /* Textarea takes full editor height */
+    resize: none; /* Disable manual resize on desktop */
+}
+
+/* RIGHT COLUMN - RESULTS (SCROLLABLE) */
+.col-right {
+    flex: 1; 
+    min-width: 300px;
+    padding: 15px;
+    overflow-y: auto; /* Allow scrolling for multiple panels */
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+    height: 100%;
+}
+
+/* Right column panels stack naturally */
+.col-right .code-panel {
+    flex: 0 0 auto; /* Do not stretch, respect content/min-height */
+    min-height: 300px;
+}
+
+/* --- SPLITTER GUTTER --- */
+.gutter {
+    width: 5px;
+    background: var(--border-color);
+    cursor: col-resize;
+    transition: background 0.2s;
+}
+.gutter:hover { background: var(--accent-color); }
+
+/* --- GENERIC PANEL STYLES --- */
+.panel {
+    background: var(--bg-panel);
+    border: 1px solid var(--border-color);
+    border-radius: 10px;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    box-shadow: var(--shadow);
+    /* Add general hover effect to panels */
+    transition: all 0.2s ease-in-out; 
+}
+.panel:hover {
+    box-shadow: 0 0 15px rgba(239, 68, 68, 0.2); /* Subtle panel glow on hover */
+}
+
+
+/* --- PANEL HEADERS --- */
+.panel-header {
+    padding: 12px 15px;
+    background: var(--bg-panel);
+    border-bottom: 1px solid var(--border-color);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-shrink: 0;
+}
+.panel-title {
+    font-size: 0.85rem;
+    font-weight: 700;
+    color: var(--text-muted);
+    letter-spacing: 1px;
+}
+.badge {
+    background: var(--gutter-bg);
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-size: 0.75rem;
+    color: var(--text-main);
+}
+/* NEW: Score styling */
+.score-container {
+    font-size: 0.8rem;
+    font-weight: 700;
+    color: var(--text-muted);
+}
+.score-value { color: var(--success-color); font-size: 1rem; margin-left: 5px; }
+
+/* --- EDITOR WRAPPER --- */
+.editor-wrapper {
+    flex: 1;
+    display: flex;
+    position: relative;
+    background: var(--bg-editor);
+    overflow: hidden;
+}
+
+.line-numbers {
+    width: 45px;
+    background: var(--gutter-bg);
+    color: var(--text-muted);
+    text-align: right;
+    padding: 15px 8px;
+    font-family: 'Consolas', 'Monaco', monospace;
+    font-size: 13px;
+    line-height: 1.5;
+    user-select: none;
+    overflow: hidden;
+    border-right: 1px solid var(--border-color);
+}
+
+textarea {
+    flex: 1;
+    background: transparent;
+    border: none;
+    color: var(--text-main);
+    padding: 15px;
+    font-family: 'Consolas', 'Monaco', monospace;
+    font-size: 13px;
+    line-height: 1.5;
+    outline: none;
+    white-space: pre; 
+    overflow-x: auto; 
+    overflow-y: scroll;
+}
+
+/* --- ANALYSIS TABLE --- */
+.analysis-box {
+    min-height: 350px; 
+    height: 350px; 
+    background: var(--bg-body);
+    display: flex;
+    flex-direction: column;
+    flex: 0 0 auto;
+    overflow: hidden;
+    margin-bottom: 15px;
+}
+
+.analysis-header-group {
+    background: rgba(239, 68, 68, 0.1);
+    border-bottom: 1px solid var(--border-color);
+    display: flex;
+    flex-direction: column; 
+    flex-shrink: 0;
+}
+
+.header-top {
+    padding: 10px 15px 5px 15px; 
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.error-title {
+    color: var(--accent-color);
+    margin-right: 10px;
+}
+
+/* --- NEW: QUALITY SCORE BAR --- */
+.quality-score-bar {
+    padding: 0 15px 5px 15px;
+    color: var(--code-snippet-color); /* Use theme blue/cyan */
+    font-size: 0.8rem;
+    font-weight: 700;
+    line-height: 1.4;
+    letter-spacing: 0.5px;
+}
+
+.integrity-bar {
+    padding: 0 15px 5px 15px; 
+    color: var(--accent-color);
+    font-size: 0.75rem;
+    font-weight: 700;
+    line-height: 1.4;
+}
+
+/* Plagiarism Bar Styling */
+.plagiarism-bar {
+    padding: 0 15px 10px 15px; 
+    font-size: 0.75rem;
+    font-weight: 700;
+    line-height: 1.4;
+    color: var(--plagiarism-low-text); /* Default to low */
+    background: var(--plagiarism-low-bg);
+}
+.plagiarism-bar i { margin-right: 5px; }
+.plagiarism-high {
+    color: var(--plagiarism-high-text);
+    background: var(--plagiarism-high-bg);
+}
+.plagiarism-low {
+    color: var(--plagiarism-low-text);
+    background: var(--plagiarism-low-bg);
+}
+
+/* NEW: Compliance Bar Styling (Success Theme) */
+.compliance-bar {
+    padding: 10px 15px; 
+    font-size: 0.75rem;
+    font-weight: 700;
+    line-height: 1.4;
+    color: var(--compliance-text); 
+    background: var(--compliance-bg);
+    border-top: 1px solid var(--border-color);
+    order: 1; /* Place above the editor-wrapper content */
+    flex-shrink: 0;
+}
+.compliance-bar i { margin-right: 5px; }
+
+
+/* --- TABLE STYLES --- */
+.table-responsive { 
+    overflow-y: auto; 
+    overflow-x: auto; 
+    flex: 1; 
+    min-height: 0; /* Important fix for flexbox scrolling */
+}
+
+table { 
+    width: 100%; 
+    border-collapse: collapse; 
+    min-width: 500px; 
+}
+
+th { 
+    text-align: left; 
+    padding: 12px 15px; 
+    color: var(--text-muted); 
+    background: var(--bg-panel); 
+    position: sticky; 
+    top: 0; 
+    font-size: 0.8rem;
+    font-weight: 700;
+}
+
+td { 
+    padding: 12px 15px; 
+    border-bottom: 1px solid var(--border-color); 
+    color: var(--text-main); 
+    vertical-align: top; 
+    font-size: 0.95rem; 
+    line-height: 1.6;
+}
+
+td:first-child { 
+    color: var(--text-muted); 
+    font-weight: bold; 
+    text-align: center; 
+}
+
+/* --- CODE SNIPPET STYLE --- */
+.code-cell {
+    font-family: 'Consolas', 'Monaco', monospace;
+    color: var(--code-snippet-color); 
+    background: var(--code-snippet-bg);
+    border-radius: 4px;
+    padding: 5px 8px; 
+    white-space: pre-wrap; 
+    word-break: break-all;
+}
+
+/* --- COMPLEXITY BOX --- */
+.complexity-container {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    padding: 20px;
+    background: var(--bg-body);
+}
+
+.complexity-group {
+    background: var(--bg-panel);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    padding: 15px;
+    /* Apply general hover effect */
+    transition: all 0.2s ease-in-out;
+}
+.complexity-group:hover {
+    transform: scale(1.01); /* Slight zoom on hover */
+    box-shadow: 0 0 10px rgba(239, 68, 68, 0.3);
+}
+
+.comp-header-label {
+    font-size: 0.75rem;
+    font-weight: 800;
+    color: var(--text-muted);
+    margin-bottom: 15px;
+    letter-spacing: 1px;
+    border-bottom: 1px solid var(--border-color);
+    padding-bottom: 5px;
+}
+
+.comp-grid {
+    display: flex;
+    justify-content: space-between;
+    gap: 10px;
+    margin-bottom: 15px;
+}
+
+.comp-mini-box {
+    flex: 1;
+    background: var(--code-snippet-bg); 
+    border-radius: 6px;
+    padding: 10px;
+    text-align: center;
+    border: 1px solid var(--border-color);
+}
+
+.mini-label {
+    display: block;
+    font-size: 0.65rem;
+    color: var(--text-muted);
+    font-weight: 700;
+    margin-bottom: 5px;
+}
+
+.mini-value {
+    display: block;
+    font-family: 'Consolas', monospace;
+    color: var(--success-color);
+    font-weight: bold;
+}
+
+.comp-desc-text {
+    font-size: 0.85rem;
+    color: var(--text-main);
+    line-height: 1.5;
+    margin: 0;
+    font-style: italic;
+    opacity: 0.9;
+}
+
+/* --- COPY BUTTON STYLES --- */
+.copy-btn {
+    background: transparent;
+    border: 1px solid var(--border-color);
+    color: var(--text-muted);
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 0.7rem;
+    cursor: pointer;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    white-space: nowrap;
+}
+.copy-btn:hover {
+    background: var(--border-color);
+    color: var(--text-main);
+    transform: scale(1.05); /* Added hover effect to small buttons */
+}
+
+/* --- AI DISCLAIMER (TOP) --- */
+.ai-disclaimer {
+    padding: 10px 15px;
+    background: var(--disclaimer-bg);
+    color: var(--disclaimer-text);
+    font-size: 0.75rem;
+    text-align: center;
+    border-bottom: 1px solid var(--border-color); 
+    font-style: italic;
+    order: 0; /* Ensure it stays above the new compliance bar */
+    flex-shrink: 0;
+}
+
+/* --- RESPONSIVE MEDIA QUERIES (MOBILE FIX) --- */
+@media (max-width: 900px) {
+    body {
+        overflow-y: auto; /* Enable Page Scroll on Mobile */
+    }
+
+    .main-container { 
+        flex-direction: column; 
+        height: auto; 
+        overflow: visible; 
+    }
+
+    .col-left { 
+        width: 100%; 
+        height: auto; 
+        overflow: visible;
+        margin-bottom: 15px;
+    }
+
+    /* On Mobile, left panel should NOT take 100% of body, but 85vh of screen */
+    .col-left .code-panel { 
+        height: 85vh; 
+        flex: none; 
+    }
+
+    .col-right { 
+        width: 100%; 
+        height: auto; 
+        overflow: visible;
+    }
+
+    .gutter { display: none; }
+    .navbar { flex-direction: column; height: auto; padding: 15px; gap: 15px; }
+    .nav-right { width: 100%; justify-content: space-between; }
+    
+    .comp-grid { flex-direction: column; }
+    .chat-widget { width: 90%; right: 5%; bottom: 10px; height: 60vh; }
+}
+/* =========================================
+   OVERWRITE: LOGO & BRANDING STYLES (Paste at bottom)
+   Matches the provided image: Red shield, dark "CODE", glowing red "STATIC",
+   and a bold, letter-spaced "Assessment" subtitle.
+   ========================================= */
+
+/* --- Light Mode Variable Adjustment --- */
+/* Ensures the "CODE" text is dark in light mode to match the image */
+body.light-mode {
+    --text-main: #0f172a; /* Very dark blue/black */
+}
+
+/* --- Logo Container Layout --- */
+/* Centers the title and subtitle vertically */
+.nav-left .logo-area {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+}
+
+/* --- Main Title Styling (CODESTATIC) --- */
+/* Aligns icon and text horizontally, sets bold typography */
+.nav-left h1#codestaticTitle {
+    font-size: 1.8rem;      /* Large, prominent size */
+    margin: 0;
+    font-weight: 900;       /* Extra bold */
+    letter-spacing: -1px;   /* Tight lettering */
+    display: flex;
+    align-items: center;
+    line-height: 1;
+    cursor: pointer;        /* Indicates interactivity */
+    transition: transform 0.2s ease-out; /* Smooth hover effect */
+}
+
+/* --- Shield Icon Styling --- */
+/* Red color with a subtle drop shadow */
+.logo-icon {
+    color: #ef4444; 
+    font-size: 1.6rem;      /* Slightly smaller than text */
+    margin-right: 12px;     /* Space between icon and text */
+    filter: drop-shadow(0 0 5px rgba(239, 68, 68, 0.4));
+}
+
+/* --- "CODE" Text Styling --- */
+/* Uses the theme's main text color (dark in light mode) */
+.brand-code {
+    color: var(--text-main);
+}
+
+/* --- "STATIC" Text Styling --- */
+/* Red color with a strong, multi-layered glow effect */
+.brand-static {
+    color: #ef4444;
+    text-shadow: 0 0 20px rgba(239, 68, 68, 0.6), 
+                 0 0 40px rgba(239, 68, 68, 0.3);
+}
+
+/* --- Hover Effect --- */
+/* Slight scale increase on hover */
+.nav-left h1#codestaticTitle:hover {
+    transform: scale(1.02);
+}
+
+/* --- Subtitle Container --- */
+/* Aligns the subtitle with the text, not the icon */
+.subtitle-wrapper {
+    display: block;
+    margin-left: 42px; /* Offset to align under "CODESTATIC" */
+}
+
+/* --- "Assessment" Subtitle Styling --- */
+/* Small, bold, uppercase, with wide letter spacing */
+.subtitle { 
+    font-size: 0.7rem; 
+    color: var(--text-muted); /* Muted color for secondary text */
+    margin: 4px 0 0 0;        /* Small top margin */
+    text-transform: uppercase; 
+    letter-spacing: 3px;      /* Wide spacing */
+    font-weight: 800;         /* Bold */
+    opacity: 0.9;
+}
+
+/* =========================================
+   1. FLOATING PROJECTS BUTTON (Green Circle Trigger)
+   ========================================= */
+#projectsButton { 
+    position: fixed; 
+    bottom: 25px; 
+    right: 25px !important; 
+    width: 60px; 
+    height: 60px; 
+    background: #238636; /* GitHub Green */
+    color: white; 
+    border-radius: 50%; 
+    display: flex; 
+    align-items: center; 
+    justify-content: center; 
+    font-size: 24px; 
+    cursor: pointer; 
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3); 
+    transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275); 
+    z-index: 2000; 
+    border: 2px solid rgba(255,255,255,0.2);
+}
+
+#projectsButton:hover { 
+    transform: scale(1.1); 
+    box-shadow: 0 0 25px rgba(35, 134, 54, 0.8);
+}
+
+/* =========================================
+   2. PROJECTS PANEL CONTAINER (Responsive)
+   ========================================= */
+#projectsPanel { 
+    position: fixed !important; 
+    bottom: 100px !important; 
+    right: 25px !important; 
+    width: 340px; 
+    height: auto; 
+    max-height: 70vh; 
+    display: none; 
+    flex-direction: column; 
+    overflow: hidden; 
+    z-index: 2100; 
+    border-radius: 12px; 
+    
+    /* DEFAULT (DARK MODE) */
+    background: #0d1117; 
+    border: 1px solid #30363d;
+    box-shadow: 0 15px 50px rgba(0,0,0,0.9);
+}
+
+/* RESPONSIVE: Adjust for Mobile Screens */
+@media (max-width: 480px) {
+    #projectsPanel {
+        width: 90%;
+        right: 5% !important;
+        bottom: 90px !important;
+        max-height: 60vh;
+    }
+}
+
+/* LIGHT MODE OVERRIDE */
+body.light-mode #projectsPanel { 
+    background: #ffffff !important; 
+    border: 1px solid #ccc !important;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.2) !important;
+}
+
+#projectsPanel[style*="display: flex"] { 
+    display: flex !important; 
+}
+
+/* =========================================
+   3. PANEL HEADER (Blue)
+   ========================================= */
+#projectsPanel .panel-header { 
+    background: #2196F3; /* Material Blue */
+    padding: 15px; 
+    text-align: center; 
+    font-weight: 700; 
+    color: white !important; 
+    font-size: 1.1rem;
+    letter-spacing: 0.5px;
+    border-bottom: 1px solid rgba(0,0,0,0.1);
+    position: relative;
+}
+
+#projectsPanel .panel-header button {
+    position: absolute;
+    right: 15px;
+    top: 50%;
+    transform: translateY(-50%);
+    background: transparent;
+    border: none;
+    color: white;
+    font-size: 1.2rem;
+    cursor: pointer;
+}
+
+/* =========================================
+   4. PANEL BODY (The List)
+   ========================================= */
+#projectsPanel .panel-body { 
+    flex: 1; 
+    overflow-y: auto; 
+    padding: 15px; 
+    background: transparent; 
+}
+
+/* =========================================
+   5. PROJECT CARD (The Gray Box)
+   ========================================= */
+.project-item { 
+    border-radius: 12px; 
+    padding: 15px; 
+    margin-bottom: 20px; 
+    display: flex; 
+    flex-direction: column; 
+    gap: 12px; 
+    box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+    
+    /* DEFAULT (DARK MODE) - Dark Gray Card */
+    background: #161b22; 
+    border: 1px solid #30363d;
+}
+
+/* LIGHT MODE CARD - Light Gray Card */
+body.light-mode .project-item { 
+    background: #eeeeee !important; 
+    border: 1px solid #dcdcdc !important;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+}
+
+/* Project Name */
+.project-item h4 { 
+    margin: 0 0 5px 0; 
+    font-size: 1.2rem; 
+    font-weight: 800; 
+    padding-left: 5px;
+    /* DEFAULT (DARK MODE) */
+    color: #e6edf3; 
+}
+
+/* LIGHT MODE TITLE - Black Text */
+body.light-mode .project-item h4 { 
+    color: #000000 !important; 
+}
+
+/* =========================================
+   6. STACKED BUTTONS (The "ATTRACTIVE" Stack)
+   ========================================= */
+.project-actions { 
+    display: flex; 
+    flex-direction: column; /* VERTICAL STACK */
+    gap: 10px; 
+    width: 100%; 
+}
+
+.project-actions button { 
+    width: 100%; 
+    padding: 12px 0; 
+    font-size: 0.85rem; 
+    font-weight: 800; 
+    text-transform: uppercase; 
+    border-radius: 8px; 
+    cursor: pointer; 
+    border: none;
+    letter-spacing: 1px;
+    color: white !important; 
+    transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+    position: relative;
+    overflow: hidden;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.2);
+}
+
+/* LOAD - Modern Blue Gradient */
+.project-actions button:nth-child(1) {
+    background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+}
+.project-actions button:nth-child(1):hover {
+    background: linear-gradient(135deg, #60a5fa 0%, #3b82f6 100%);
+    box-shadow: 0 0 15px rgba(59, 130, 246, 0.6); /* Blue Glow */
+    transform: translateY(-2px);
+}
+
+/* FAVORITE - Sunset Gold/Orange Gradient */
+.project-actions button:nth-child(2) {
+    background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+}
+.project-actions button:nth-child(2):hover {
+    background: linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%);
+    box-shadow: 0 0 15px rgba(245, 158, 11, 0.6); /* Gold Glow */
+    transform: translateY(-2px);
+}
+
+/* DELETE - Neon Red Gradient */
+.project-actions button:nth-child(3) {
+    background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+}
+.project-actions button:nth-child(3):hover {
+    background: linear-gradient(135deg, #f87171 0%, #ef4444 100%);
+    box-shadow: 0 0 15px rgba(239, 68, 68, 0.6); /* Red Glow */
+    transform: translateY(-2px);
+}
+
+/* Active Click Effect */
+.project-actions button:active {
+    transform: translateY(1px) scale(0.98);
+    box-shadow: none;
+}
+
+/* =========================================
+   7. SAVE PROJECT BUTTON (Footer)
+   ========================================= */
+.panel-footer {
+    padding: 15px;
+    /* DEFAULT (DARK) */
+    background: #0d1117; 
+    border-top: 1px solid #30363d;
+}
+
+/* LIGHT MODE FOOTER */
+body.light-mode .panel-footer {
+    background: #ffffff !important;
+    border-top: 1px solid #ccc !important;
+}
+
+#saveProjectBtn { 
+    width: 100%; 
+    padding: 14px; 
+    font-size: 0.95rem; 
+    font-weight: 800; 
+    text-transform: uppercase;
+    border-radius: 8px; 
+    border: none;
+    cursor: pointer;
+    
+    /* Matches Header Blue */
+    background: #2196F3; 
+    color: white !important; 
+    box-shadow: 0 4px 10px rgba(33, 150, 243, 0.3);
+    transition: all 0.2s ease;
+}
+
+#saveProjectBtn:hover { 
+    background: #1E88E5; 
+    transform: translateY(-2px);
+    box-shadow: 0 6px 15px rgba(33, 150, 243, 0.5);
+}
+
+/* -------------------------
+       THEME VARIABLES
+    ------------------------- */
+    :root {
+        --bg-dark: #050505;
+        --accent: #ef4444; /* Danger Red */
+        --accent-glow: rgba(239, 68, 68, 0.6);
+        --text-main: #ffffff;
+        --text-muted: #e2e8f0;
+        --panel-bg: rgba(15, 15, 20, 0.6);
+        --border-color: rgba(239, 68, 68, 0.1);
+        --footer-bg: rgba(0, 0, 0, 0.9);
+    }
+
+    /* LIGHT MODE OVERRIDES */
+    body.light-mode {
+        --bg-dark: #f0f4f8;
+        --accent: #dc2626;
+        --accent-glow: rgba(220, 38, 38, 0.3);
+        --text-main: #111827;
+        --text-muted: #374151;
+        --panel-bg: #ffffff;
+        --border-color: rgba(220, 38, 38, 0.2);
+        --footer-bg: rgba(255, 255, 255, 0.95);
+    }
+
+    /* -------------------------
+       BASE STYLES
+    ------------------------- */
+    html {
+        scroll-behavior: smooth;
+    }
+
+    body {
+        background-color: var(--bg-dark);
+        color: var(--text-main);
+        font-family: 'Montserrat', sans-serif;
+        overflow-x: hidden; /* Critical for mobile to prevent side-scroll */
+        transition: background-color 0.4s ease, color 0.4s ease;
+    }
+
+    /* DANGER GRID BACKGROUND */
+    .danger-grid {
+        position: fixed;
+        top: 0; left: 0; width: 100%; height: 100%;
+        background-image:
+            linear-gradient(var(--border-color) 1px, transparent 1px),
+            linear-gradient(90deg, var(--border-color) 1px, transparent 1px);
+        background-size: 40px 40px;
+        z-index: -1;
+        mask-image: radial-gradient(circle at center, black 40%, transparent 100%);
+        pointer-events: none; /* Prevents interference with clicks */
+    }
+
+    /* NAVBAR STYLING */
+    nav.navbar-bg {
+        background: rgba(5, 5, 5, 0.85);
+        border-bottom: 1px solid var(--border-color);
+        backdrop-filter: blur(12px);
+        transition: all 0.4s ease;
+    }
+
+    body.light-mode nav.navbar-bg {
+        background: rgba(255, 255, 255, 0.9);
+    }
+
+    /* GLOWING TEXT EFFECT */
+    .danger-text {
+        color: var(--accent);
+        text-shadow: 0 0 15px var(--accent-glow);
+    }
+
+    /* RUN ASSESSMENT BUTTON */
+    .btn-danger-glow {
+        background: linear-gradient(135deg, #991b1b 0%, var(--accent) 100%);
+        color: white;
+        font-weight: 800;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        box-shadow: 0 0 20px var(--accent-glow);
+        transition: all 0.3s ease;
+        white-space: nowrap; /* Keeps text on one line */
+    }
+
+    .btn-danger-glow:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 0 30px var(--accent);
+    }
+
+    /* SCROLLBAR CUSTOMIZATION */
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: rgba(0, 0, 0, 0.1); }
+    ::-webkit-scrollbar-thumb { background: rgba(239, 68, 68, 0.4); border-radius: 3px; }
+    ::-webkit-scrollbar-thumb:hover { background: var(--accent); }
+
+    /* -------------------------
+       MOBILE RESPONSIVENESS
+    ------------------------- */
+    @media (max-width: 768px) {
+        /* Fix the header button size on mobile */
+        .btn-danger-glow {
+            font-size: 0.75rem; /* Smaller text */
+            padding: 0.5rem 1rem; /* Smaller padding */
+            box-shadow: 0 0 10px var(--accent-glow); /* Reduce glow radius */
+            letter-spacing: 0.5px;
+        }
+
+        /* Adjust logo size */
+        .text-2xl {
+            font-size: 1.25rem; /* Equivalent to text-xl */
+        }
+        
+        /* Ensure dropdowns don't overflow */
+        select {
+            max-width: 100px;
+            font-size: 0.75rem;
+        }
+
+        /* Fix workspace height */
+        #colLeft, #colRight {
+            height: auto;
+            min-height: 50vh;
+        }
+    }

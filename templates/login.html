@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Login - CodeStatic AI</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        body { background: #0f172a; color: white; font-family: sans-serif; display: flex; height: 100vh; justify-content: center; align-items: center; margin: 0; }
+        .login-box { background: #1e293b; padding: 2.5rem; border-radius: 12px; width: 380px; box-shadow: 0 10px 25px rgba(0,0,0,0.5); border: 1px solid #334155; }
+        .logo { text-align: center; margin-bottom: 2rem; }
+        .logo i { font-size: 3rem; color: #ef4444; }
+        .logo h1 { font-size: 1.5rem; margin: 10px 0 0; }
+        
+        .social-btn {
+            width: 100%; padding: 12px; margin-bottom: 10px; border: none; border-radius: 6px;
+            font-size: 1rem; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 10px;
+            transition: transform 0.1s; text-decoration: none;
+        }
+        .social-btn:active { transform: scale(0.98); }
+        .google { background: white; color: #333; }
+        .outlook { background: #0078d4; color: white; }
+        
+        .divider { text-align: center; color: #64748b; margin: 20px 0; font-size: 0.9rem; }
+        
+        .input-group { margin-bottom: 15px; }
+        input { width: 93%; padding: 12px; background: #0f172a; border: 1px solid #475569; color: white; border-radius: 6px; outline: none; }
+        input:focus { border-color: #ef4444; }
+        
+        .primary-btn { width: 100%; padding: 12px; background: #ef4444; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; }
+        .primary-btn:hover { background: #dc2626; }
+
+        #otpSection { display: none; margin-top: 15px; animation: fadeIn 0.3s; }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        
+        .error-msg { color: #ef4444; text-align: center; margin-bottom: 15px; font-size: 0.9rem; }
+    </style>
+</head>
+<body>
+
+<div class="login-box">
+    <div class="logo">
+        <i class="fas fa-fingerprint"></i>
+        <h1>CodeStatic Access</h1>
+    </div>
+
+    <div id="errorBox" class="error-msg"></div>
+
+    <a href="/auth/google/login" class="social-btn google">
+        <i class="fab fa-google"></i> Continue with Google
+    </a>
+
+    <div class="divider">OR USE SECURE EMAIL</div>
+
+    <div id="emailForm">
+        <div class="input-group">
+            <input type="email" id="userEmail" placeholder="name@company.com" required>
+        </div>
+        <button onclick="requestOtp()" class="primary-btn">Send Magic Code</button>
+    </div>
+
+    <form id="otpSection" action="/auth/verify-otp" method="POST">
+        <input type="hidden" name="email" id="hiddenEmail">
+        <p style="text-align:center; font-size:0.9rem; color:#94a3b8; margin-bottom:10px;">Enter the 6-digit code sent to your email.</p>
+        <div class="input-group">
+            <input type="text" name="otp" placeholder="123456" maxlength="6" style="text-align:center; letter-spacing: 5px; font-size: 1.2rem;" required>
+        </div>
+        <button type="submit" class="primary-btn">Verify & Launch</button>
+    </form>
+</div>
+
+<script>
+    // Handle URL Errors
+    const urlParams = new URLSearchParams(window.location.search);
+    if(urlParams.has('error')) {
+        document.getElementById('errorBox').innerText = urlParams.get('error');
+    }
+
+    async function requestOtp() {
+        const email = document.getElementById('userEmail').value;
+        const btn = document.querySelector('#emailForm button');
+        
+        if(!email.includes('@')) {
+            alert("Please enter a valid email.");
+            return;
+        }
+
+        btn.innerText = "Sending...";
+        btn.disabled = true;
+
+        const formData = new FormData();
+        formData.append('email', email);
+
+        try {
+            const res = await fetch('/auth/send-otp', {
+                method: 'POST',
+                body: formData
+            });
+            const data = await res.json();
+            
+            if(data.status === 'success') {
+                document.getElementById('emailForm').style.display = 'none';
+                document.getElementById('otpSection').style.display = 'block';
+                document.getElementById('hiddenEmail').value = email;
+            }
+        } catch(err) {
+            alert("Failed to send OTP. Check server logs.");
+            btn.innerText = "Send Magic Code";
+            btn.disabled = false;
+        }
+    }
+</script>
+
+</body>
+</html>

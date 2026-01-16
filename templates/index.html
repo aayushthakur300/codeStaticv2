@@ -1,0 +1,640 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>CodeStatic | Supreme Logic Analysis</title>
+
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/js/all.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&family=Montserrat:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+
+    <style>
+           /* -------------------------
+           THEME VARIABLES
+        ------------------------- */
+        :root {
+            --bg-dark: #050505;
+            --accent: #ef4444;
+            /* Danger Red */
+            --accent-glow: rgba(239, 68, 68, 0.6);
+            --text-main: #ffffff;
+            --text-muted: #e2e8f0;
+            --panel-bg: rgba(15, 15, 20, 0.6);
+            --border-color: rgba(239, 68, 68, 0.1);
+            --footer-bg: rgba(0, 0, 0, 0.9);
+            /* Dark background for fixed footer */
+        }
+
+        /* LIGHT MODE */
+        body.light {
+            --bg-dark: #f0f4f8;
+            --accent: #dc2626;
+            --accent-glow: rgba(220, 38, 38, 0.3);
+            --text-main: #111827;
+            --text-muted: #374151;
+            --panel-bg: #ffffff;
+            --border-color: rgba(220, 38, 38, 0.2);
+            --footer-bg: rgba(255, 255, 255, 0.95);
+            /* Light background for fixed footer */
+        }
+
+        /* -------------------------
+           BASE STYLES
+        ------------------------- */
+        html {
+            scroll-behavior: smooth;
+        }
+
+        body {
+            background-color: var(--bg-dark);
+            color: var(--text-main);
+            font-family: 'Montserrat', sans-serif;
+            overflow-x: hidden;
+            transition: background-color 0.4s ease, color 0.4s ease;
+            padding-bottom: 50px;
+            /* SPACE FOR FIXED FOOTER */
+        }
+
+        /* DANGER GRID BACKGROUND */
+        .danger-grid {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-image:
+                linear-gradient(var(--border-color) 1px, transparent 1px),
+                linear-gradient(90deg, var(--border-color) 1px, transparent 1px);
+            background-size: 40px 40px;
+            z-index: -1;
+            mask-image: radial-gradient(circle at center, black 40%, transparent 100%);
+            transition: background-image 0.4s ease;
+        }
+
+        /* GLOWING TEXT ANIMATION */
+        @keyframes dangerPulse {
+            0% {
+                text-shadow: 0 0 10px var(--accent-glow);
+            }
+
+            50% {
+                text-shadow: 0 0 25px var(--accent), 0 0 10px rgba(255, 255, 255, 0.5);
+            }
+
+            100% {
+                text-shadow: 0 0 10px var(--accent-glow);
+            }
+        }
+
+        .danger-text {
+            color: var(--accent);
+            animation: dangerPulse 3s infinite alternate;
+        }
+
+        /* NAVBAR */
+        nav.navbar-bg {
+            background: rgba(5, 5, 5, 0.85);
+            border-bottom: 1px solid var(--border-color);
+            backdrop-filter: blur(12px);
+            transition: background-color 0.4s ease, border-color 0.4s ease, backdrop-filter 0.4s ease;
+        }
+
+        body.light nav.navbar-bg {
+            background: rgba(255, 255, 255, 0.9);
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        /* THEME TOGGLE ICON STYLE */
+        #themeToggle {
+            color: var(--text-main);
+            transition: color 0.4s ease;
+        }
+
+        #themeToggle:hover {
+            color: var(--accent);
+        }
+
+        /* HERO BUTTON */
+        .btn-danger-glow {
+            background: linear-gradient(135deg, #991b1b 0%, var(--accent) 100%);
+            color: white;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            box-shadow: 0 0 20px var(--accent-glow);
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+            z-index: 10;
+        }
+
+        .btn-danger-glow:hover {
+            transform: translateY(-3px) scale(1.05);
+            box-shadow: 0 0 40px var(--accent);
+        }
+
+        /* FEATURE CARD STYLE */
+        .feature-card {
+            background: var(--panel-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 2rem;
+            transition: all 0.3s ease;
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            align-items: flex-start;
+            height: 100%;
+        }
+
+        .feature-card:hover {
+            border-color: var(--accent);
+            box-shadow: 0 0 25px var(--accent-glow);
+            transform: translateY(-5px);
+        }
+
+        .feature-icon-lg {
+            font-size: 2rem;
+            color: var(--accent);
+            margin-bottom: 1rem;
+        }
+
+        .feature-title {
+            font-size: 1.25rem;
+            font-weight: 700;
+            color: var(--text-main);
+            margin-bottom: 0.75rem;
+            line-height: 1.2;
+        }
+
+        .feature-description {
+            font-size: 0.95rem;
+            color: var(--text-muted);
+            line-height: 1.6;
+            font-weight: 500;
+        }
+
+        /* White Mode Text Boldness Fix */
+        body.light .feature-title {
+            font-weight: 800;
+        }
+
+        body.light .feature-description {
+            font-weight: 600;
+            color: #374151;
+        }
+
+        /* CODE BLOCK PREVIEW */
+        .code-preview {
+            font-family: 'JetBrains Mono', monospace;
+            background: var(--bg-dark);
+            border: 1px solid var(--border-color);
+            border-left: 3px solid var(--accent);
+            padding: 1.5rem;
+            border-radius: 8px;
+            color: var(--text-main);
+            position: relative;
+        }
+
+        .code-line {
+            display: block;
+        }
+
+        .code-line::before {
+            content: '>';
+            color: var(--accent);
+            margin-right: 10px;
+        }
+
+        /* CONTACT SECTION STYLES (Scrollable Section) */
+        #contact {
+            padding-top: 4rem;
+            padding-bottom: 4rem;
+            background-color: var(--footer-bg);
+            border-top: 1px solid var(--border-color);
+            transition: background-color 0.4s ease;
+        }
+
+        .connect-text {
+            color: var(--text-main);
+            font-weight: 800;
+        }
+
+        .connect-us-span {
+            color: var(--accent);
+        }
+
+        .social-icon {
+            display: inline-flex;
+            width: 48px;
+            height: 48px;
+            align-items: center;
+            justify-content: center;
+            border-radius: 50%;
+            background: var(--panel-bg);
+            border: 1px solid var(--border-color);
+            color: var(--text-muted);
+            transition: all 0.3s ease;
+        }
+
+        .social-icon:hover {
+            color: var(--accent);
+            transform: scale(1.1);
+            box-shadow: 0 0 10px var(--accent-glow);
+        }
+
+        /* Attractive Icons in Light Mode */
+        body.light .social-icon {
+            background: #ffffff;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+            border-color: #e5e7eb;
+            color: #4b5563;
+        }
+
+        body.light .social-icon:hover {
+            background: var(--accent);
+            color: white;
+            border-color: var(--accent);
+            box-shadow: 0 5px 15px rgba(220, 38, 38, 0.4);
+        }
+
+        /* FOOTER (Fixed Copyright Line) */
+        footer {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            padding: 0.5rem 0;
+            /* Minimal padding */
+            background-color: var(--footer-bg);
+            border-top: 1px solid var(--border-color);
+            text-align: center;
+            z-index: 60;
+        }
+
+        /* Copyright Text Styling */
+        .copyright-text {
+            font-size: 0.875rem;
+            /* Base size */
+            font-weight: 700;
+            /* Bold */
+            color: var(--text-muted);
+            transition: color 0.4s ease;
+            display: block;
+        }
+
+        body.light .copyright-text {
+            color: #374151;
+            /* Dark text in light mode */
+        }
+
+        /* RESPONSIVE */
+        @media (max-width: 768px) {
+            .hero-title {
+                font-size: 2.5rem;
+            }
+        }
+    </style>
+</head>     
+
+<body>
+
+    <div class="danger-grid"></div>
+
+    <nav class="navbar-bg fixed top-0 w-full z-50 px-6 py-4">
+        <div class="max-w-7xl mx-auto flex items-center justify-between">
+            <a href="#" class="text-2xl font-black tracking-tighter uppercase flex items-center gap-2">
+                <span class="text-[var(--text-main)]">Code<span class="danger-text">Static</span></span>
+            </a>
+
+            <div class="hidden md:flex items-center gap-8 font-bold text-sm uppercase tracking-widest text-[var(--text-main)]">
+                <a href="#features" class="hover:text-red-500 transition duration-300">Features</a>
+                <a href="#demo" class="hover:text-red-500 transition duration-300">Analysis</a>
+                <a href="/logicprobe" target="_blank" class="text-red-500 hover:text-white transition duration-300 border border-red-500/30 px-3 py-1 rounded">
+                    <i class="fa-solid fa-bolt mr-1"></i> LogicProbe
+                </a>
+            </div>
+
+            <div class="flex items-center gap-4">
+                {% if user %}
+                    <span class="text-xs text-green-400 font-mono hidden md:inline">Logged in as: {{ user.email }}</span>
+                    <button class="nav-btn" onclick="toggleFeedback()"><i class="fas fa-comment-alt"></i> Feedback</button>
+                    <a href="/logout" class="nav-btn" style="background:#ef4444; border-color:#ef4444; color:white;">
+                        <i class="fas fa-sign-out-alt"></i> Logout
+                    </a>
+                {% else %}
+                    <a href="/login" class="nav-btn"><i class="fas fa-sign-in-alt"></i> Login</a>
+                {% endif %}
+
+                <button id="themeToggle" aria-label="Toggle theme" class="p-2 rounded-md text-xl">
+                    <i id="themeIcon" class="fa-solid fa-moon"></i>
+                </button>
+            </div>
+        </div>
+    </nav>
+
+    <section class="relative pt-40 pb-20 min-h-screen flex items-center justify-center text-center px-6">
+        <div class="max-w-5xl mx-auto z-10">
+            <div
+                class="inline-block px-4 py-1 mb-6 border border-red-500/30 rounded-full bg-red-900/10 text-red-400 text-xs font-bold tracking-widest uppercase animate-pulse">
+                v2.0 System Online
+            </div>
+
+            <h1 class="hero-title text-5xl md:text-7xl font-black mb-6 leading-tight">
+                SUPREME AI <br>
+                <span class="danger-text">CODE ARCHITECT</span>
+            </h1>
+
+            <p
+                class="text-[var(--text-muted)] text-lg md:text-xl max-w-2xl mx-auto mb-10 leading-relaxed font-semibold">
+                Forensic debugging, static analysis, and automated correction.
+                Persistent and Versioned Code Traceability Records, fix logic, and generate professional PDF reports.
+            </p>
+
+            <div class="flex flex-col md:flex-row gap-6 justify-center">
+                <a href="/logicprobe" target="_blank"
+                    class="btn-danger-glow px-8 py-4 rounded-lg text-lg flex items-center justify-center gap-3">
+                    <i class="fa-solid fa-microchip"></i> Launch LogicProbe
+                </a>
+                <a href="#features"
+                    class="px-8 py-4 rounded-lg text-lg font-bold border border-[var(--text-muted)] text-[var(--text-main)] hover:bg-[var(--accent)] hover:border-[var(--accent)] hover:text-white transition flex items-center justify-center gap-2">
+                    Explore Features <i class="fa-solid fa-arrow-down"></i>
+                </a>
+            </div>
+        </div>
+    </section>
+
+    <section id="features" class="py-24 bg-black/5 dark:bg-black/30">
+        <div class="max-w-7xl mx-auto px-6">
+            <div class="text-center mb-16">
+                <h2 class="text-3xl md:text-4xl font-black uppercase tracking-wide text-[var(--text-main)]">System <span
+                        class="text-red-500">Capabilities</span></h2>
+                <div class="h-1 w-24 bg-red-600 mx-auto mt-4 rounded"></div>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
+
+                <div class="feature-card">
+                    <i class="fa-solid fa-bug feature-icon-lg"></i>
+                    <h3 class="feature-title">Forensic Debugging</h3>
+                    <p class="feature-description">Deep-scan analysis detects syntax errors, logical flaws, runtime
+                        risks, and security vulnerabilities using a 23-point validation system.</p>
+                </div>
+
+                <div class="feature-card">
+                    <i class="fa-solid fa-wand-magic-sparkles feature-icon-lg"></i>
+                    <h3 class="feature-title">Auto-Fix & Translate</h3>
+                    <p class="feature-description">Automatically generates 100% compliant, corrected code and translates
+                        it into the selected target language with guaranteed compilability.</p>
+                </div>
+                <div class="feature-card">
+                    <i class="fa-solid fa-database feature-icon-lg"></i>
+                    <h3 class="feature-title">Database Integration</h3>
+                    <p class="feature-description">Automatically save and reload previous code. Manage your library by
+                        favoriting key snippets, or deleting old entries.</p>
+                </div>
+                <div class="feature-card">
+                    <i class="fa-solid fa-file-pdf feature-icon-lg"></i>
+                    <h3 class="feature-title">Professional Reporting</h3>
+                    <p class="feature-description">Generate standardized PDF reports containing original code, fixed
+                        code, error logs, complexity analysis, and explanations.</p>
+                </div>
+
+                <div class="feature-card">
+                    <i class="fa-solid fa-language feature-icon-lg"></i>
+                    <h3 class="feature-title">Language Detection</h3>
+                    <p class="feature-description">Automatically identifies the source programming language without user
+                        input.</p>
+                </div>
+
+                <div class="feature-card">
+                    <i class="fa-solid fa-triangle-exclamation feature-icon-lg"></i>
+                    <h3 class="feature-title">Critical Error Log</h3>
+                    <p class="feature-description">Pinpoints exact line numbers with detailed error descriptions mapped
+                        directly to the original code.</p>
+                </div>
+
+                <div class="feature-card">
+                    <i class="fa-solid fa-book-open feature-icon-lg"></i>
+                    <h3 class="feature-title">Line-by-Line Explanation</h3>
+                    <p class="feature-description">Explains the corrected code step-by-step while filtering empty lines,
+                        comments, and noise.</p>
+                </div>
+
+                <div class="feature-card">
+                    <i class="fa-solid fa-chart-line feature-icon-lg"></i>
+                    <h3 class="feature-title">Complexity Analysis</h3>
+                    <p class="feature-description">Provides best, average, and worst-case Big-O time and space
+                        complexity metrics.</p>
+                </div>
+
+                <div class="feature-card">
+                    <i class="fa-solid fa-user-secret feature-icon-lg"></i>
+                    <h3 class="feature-title">Source Sense Monitor</h3>
+                    <p class="feature-description">Detects similarity against known online solutions and flags high or
+                        low match risk.</p>
+                </div>
+
+                <div class="feature-card">
+                    <i class="fa-solid fa-check-double feature-icon-lg"></i>
+                    <h3 class="feature-title">Integrity Check</h3>
+                    <p class="feature-description">Validates logic correctness, intent alignment, and structural
+                        consistency of the original code.</p>
+                </div>
+
+                <div class="feature-card">
+                    <i class="fa-solid fa-shield-halved feature-icon-lg"></i>
+                    <h3 class="feature-title">Compliance Status</h3>
+                    <p class="feature-description">Displays real-time PASS/FAIL compliance status after full correction
+                        and validation.</p>
+                </div>
+
+                <div class="feature-card">
+                    <i class="fa-solid fa-headset feature-icon-lg"></i>
+                    <h3 class="feature-title">AI Code Assistant</h3>
+                    <p class="feature-description">Context-aware chat assistant that understands the currently loaded
+                        code and answers logic or syntax questions.</p>
+                </div>
+
+                <div class="feature-card">
+                    <i class="fa-solid fa-globe feature-icon-lg"></i>
+                    <h3 class="feature-title">Multi-Language Support</h3>
+                    <p class="feature-description">Supports analysis, fixing, and translation across 20+ programming
+                        languages.</p>
+                </div>
+
+                <div class="feature-card">
+                    <i class="fa-solid fa-star-half-stroke feature-icon-lg"></i>
+                    <h3 class="feature-title">Quality Scoring System</h3>
+                    <p class="feature-description">Assigns strict quality scores to the original code based on
+                        correctness, structure, and maintainability.</p>
+                </div>
+
+                <div class="feature-card">
+                    <i class="fa-solid fa-glasses feature-icon-lg"></i>
+                    <h3 class="feature-title">Maintainability & Readability</h3>
+                    <p class="feature-description">Evaluates how clean, understandable, and maintainable the code is for
+                        real-world use.</p>
+                </div>
+
+                <div class="feature-card">
+                    <i class="fa-solid fa-bomb feature-icon-lg"></i>
+                    <h3 class="feature-title">Runtime Failure Prediction</h3>
+                    <p class="feature-description">Predicts crashes, exceptions, and unsafe execution paths before
+                        running the code.</p>
+                </div>
+
+                <div class="feature-card">
+                    <i class="fa-solid fa-code feature-icon-lg"></i>
+                    <h3 class="feature-title">Standardized Code Output</h3>
+                    <p class="feature-description">Rewrites code in a clean, professional, industry-standard format.</p>
+                </div>
+
+                <div class="feature-card">
+                    <i class="fa-solid fa-bolt feature-icon-lg"></i>
+                    <h3 class="feature-title">Real-Time Analysis UI</h3>
+                    <p class="feature-description">Live feedback with loading state, progress lock, and visual status
+                        indicators.</p>
+                </div>
+
+                <div class="feature-card">
+                    <i class="fa-solid fa-table-columns feature-icon-lg"></i>
+                    <h3 class="feature-title">Split-Screen Workspace</h3>
+                    <p class="feature-description">Resizable dual-pane editor for input code and analysis results.</p>
+                </div>
+
+                <div class="feature-card">
+                    <i class="fa-solid fa-circle-half-stroke feature-icon-lg"></i>
+                    <h3 class="feature-title">Dark / Light Theme Toggle</h3>
+                    <p class="feature-description">Instant UI theme switching without page reload.</p>
+                </div>
+
+            </div>
+        </div>
+    </section>
+
+    <section id="demo" class="py-24 relative overflow-hidden">
+        <div class="max-w-6xl mx-auto px-6 grid md:grid-cols-2 gap-12 items-center">
+
+            <div>
+                <h2 class="text-3xl font-bold mb-6 text-[var(--text-main)]">Supreme AI <span
+                        class="text-red-500">LogicProbe</span></h2>
+                <p class="text-[var(--text-muted)] text-lg mb-6 leading-relaxed font-bold">
+                    The LogicProbe engine performs a simultaneous 23-point security and compliance check, providing
+                    granular feedback on efficiency and integrity.
+                </p>
+                <ul class="space-y-4 text-[var(--text-muted)] font-semibold">
+                    <li class="flex items-center gap-3">
+                        <i class="fa-solid fa-check-circle text-green-500"></i>
+                        <span>Time & Space Complexity Analysis</span>
+                    </li>
+                    <li class="flex items-center gap-3">
+                        <i class="fa-solid fa-check-circle text-green-500"></i>
+                        <span>Plagiarism & Integrity Checks</span>
+                    </li>
+                    <li class="flex items-center gap-3">
+                        <i class="fa-solid fa-check-circle text-green-500"></i>
+                        <span>Detailed Error Table with Line Mapping</span>
+                    </li>
+                </ul>
+                <a href="/logicprobe" target="_blank"
+                    class="mt-8 inline-block text-red-400 font-bold hover:text-red-500 transition">
+                    Try Live Demo ->
+                </a>
+            </div>
+
+            <div class="code-preview shadow-2xl shadow-red-900/20">
+                <div class="flex items-center gap-2 mb-4 border-b border-gray-800 pb-2">
+                    <div class="w-3 h-3 rounded-full bg-red-500"></div>
+                    <div class="w-3 h-3 rounded-full bg-yellow-500"></div>
+                    <div class="w-3 h-3 rounded-full bg-green-500"></div>
+                    <span class="text-xs text-gray-500 ml-auto">analysis_engine.py</span>
+                </div>
+                <code class="text-sm">
+                    <span class="code-line"><span class="text-purple-400">def</span> check_compliance(code_input):</span>
+                    <span class="code-line pl-4"><span class="text-blue-400">if</span> logic_error_detected:</span>
+                    <span class="code-line pl-8 text-red-400"># [ERROR] Runtime Failure: Division by zero risk</span>
+                    <span class="code-line pl-8">return <span class="text-green-400">"FATAL"</span></span>
+                    <span class="code-line pl-4"><span class="text-blue-400">else</span>:</span>
+                    <span class="code-line pl-8">return <span class="text-green-400">"COMPLIANT"</span></span>
+                </code>
+            </div>
+
+        </div>
+    </section>
+
+    <section id="contact" class="py-16">
+        <div class="max-w-7xl mx-auto px-6 text-center">
+            <h3 class="text-3xl font-black mb-8 connect-text">Connect with <span class="connect-us-span">Us</span></h3>
+
+            <div class="flex items-center justify-center gap-6 mb-8">
+                <a class="social-icon" href="#" title="GitHub" aria-label="GitHub">
+                    <i class="fab fa-github"></i>
+                </a>
+
+                <a class="social-icon" href="#" title="LinkedIn" aria-label="LinkedIn">
+                    <i class="fab fa-linkedin-in"></i>
+                </a>
+
+                <a class="social-icon" href="#" title="Facebook" aria-label="Facebook">
+                    <i class="fab fa-facebook-f"></i>
+                </a>
+
+                <a class="social-icon" href="#" title="Instagram" aria-label="Instagram">
+                    <i class="fab fa-instagram"></i>
+                </a>
+            </div>
+        </div>
+    </section>
+
+    <footer class="fixed bottom-0 w-full z-60">
+        <div class="max-w-7xl mx-auto px-6">
+            <p class="copyright-text">
+                © 2025 CodeStatic • All Rights Reserved • Developed by Aayush Thakur
+            </p>
+        </div>
+    </footer>
+
+    <script>
+        // --- THEME TOGGLE LOGIC ---
+        const themeToggle = document.getElementById('themeToggle');
+        const themeIcon = document.getElementById('themeIcon');
+
+        function initTheme() {
+            const stored = localStorage.getItem('cp_theme');
+            const prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+
+            let isLight = false;
+
+            if (stored === 'light') {
+                isLight = true;
+            } else if (stored === 'dark') {
+                isLight = false;
+            } else {
+                isLight = !prefersDark;
+            }
+
+            if (isLight) {
+                document.body.classList.add('light');
+                themeIcon.className = 'fa-solid fa-sun';
+            } else {
+                document.body.classList.remove('light');
+                themeIcon.className = 'fa-solid fa-moon';
+            }
+        }
+
+        if (themeToggle) {
+            themeToggle.addEventListener('click', () => {
+                const isLight = document.body.classList.toggle('light');
+                localStorage.setItem('cp_theme', isLight ? 'light' : 'dark');
+                themeIcon.className = isLight ? 'fa-solid fa-sun' : 'fa-solid fa-moon';
+            });
+            initTheme(); // Initialize theme on load
+        }
+    </script>
+
+</body>
+
+</html> 
