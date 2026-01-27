@@ -98,8 +98,7 @@ except ImportError:
 
 # Database Config
 # DB_HOST = os.getenv("MYSQL_HOST", "localhost")
-# DB_HOST = os.getenv("DB_HOST", "localhost")
-DB_HOST = "mysql-33c5ab-aayushthakur300-ebd9.aivencloud.com" # <--- PASTE YOUR REAL AIVEN HOST HERE
+DB_HOST = os.getenv("DB_HOST", "DB_HOST")
 DB_USER = os.getenv("MYSQL_USER", "root")
 DB_PASSWORD = os.getenv("MYSQL_PASSWORD", "")
 DB_NAME = os.getenv("MYSQL_DB", "codestatic_db")
