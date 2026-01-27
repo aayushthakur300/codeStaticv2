@@ -52,6 +52,10 @@ print("✅ [CHECKPOINT] Environment Variables Loaded")
 # 2. SETUP FASTAPI APP
 app = FastAPI(title="CodeStatic AI (Enterprise SaaS)")
 
+@app.get("/healthz")
+def health_check():
+    return {"status": "ok"}
+
 # SECURITY: Session Middleware (Crucial for Login)
 # In production, SESSION_SECRET should be a complex random string in .env
 # UPDATE IN RUN.PY
