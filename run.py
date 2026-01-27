@@ -97,7 +97,9 @@ except ImportError:
 # --------------------------------------------------------------------
 
 # Database Config
-DB_HOST = os.getenv("MYSQL_HOST", "localhost")
+# DB_HOST = os.getenv("MYSQL_HOST", "localhost")
+# DB_HOST = os.getenv("DB_HOST", "localhost")
+DB_HOST = "mysql-2b3c4d-your-project.aivencloud.com" # <--- PASTE YOUR REAL AIVEN HOST HERE
 DB_USER = os.getenv("MYSQL_USER", "root")
 DB_PASSWORD = os.getenv("MYSQL_PASSWORD", "")
 DB_NAME = os.getenv("MYSQL_DB", "codestatic_db")
@@ -200,18 +202,23 @@ MODEL_ROSTER = [
 google_sso = GoogleSSO(
     client_id=os.getenv("GOOGLE_CLIENT_ID", ""),
     client_secret=os.getenv("GOOGLE_CLIENT_SECRET", ""),
-    redirect_uri="http://localhost:10000/auth/google/callback"
+    # redirect_uri="http://localhost:10000/auth/google/callback"
+    redirect_uri= "https://codestaticv2.onrender.com/auth/google/callback"
 )
 
 microsoft_sso = MicrosoftSSO(
     client_id=os.getenv("MS_CLIENT_ID", ""),
     client_secret=os.getenv("MS_CLIENT_SECRET", ""),
-    redirect_uri="http://localhost:10000/auth/microsoft/callback"
+    #redirect_uri="http://localhost:10000/auth/microsoft/callback"
+    redirect_uri= "https://codestaticv2.onrender.com/auth/microsoft/callback"
 )
 # --------------------------------------------------------------------
 # 🔹 DATABASE HELPERS
 # --------------------------------------------------------------------
 def get_connection():
+    print("--------------------------------------------------")
+    print(f"🔍 DEBUG DATABASE: Trying to connect to host: '{DB_HOST}'")
+    print("--------------------------------------------------")
     """Creates a fresh connection to MySQL"""
     try:
         return pymysql.connect(
