@@ -116,7 +116,7 @@ mail_conf = ConnectionConfig(
     USE_CREDENTIALS=True,
     VALIDATE_CERTS=True
 )
-
+   
 # AI Config
 api_key = os.getenv("GEMINI_API_KEY")
 if api_key:
@@ -279,8 +279,11 @@ async def send_otp_email(email: str, otp: str):
         await fm.send_message(message)
         print(f"✅ [EMAIL] OTP sent successfully to {email}")
     except Exception as e:
-        print(f"💀 [EMAIL ERROR] Failed to send email: {e}")
-
+        print("=====================================================")
+        print("💀 EMAIL FATAL ERROR DETAILS:")
+        print(traceback.format_exc())  # <--- THIS IS THE MAGIC LINE
+        print("=====================================================")
+    # Keep your existing return statement if you have one
 # --------------------------------------------------------------------
 # 🔹 PYDANTIC MODELS
 # --------------------------------------------------------------------
