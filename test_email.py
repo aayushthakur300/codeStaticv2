@@ -4,9 +4,9 @@ from pydantic import EmailStr, BaseModel
 
 # ⚠️ REPLACE THESE WITH YOUR EXACT RENDER CREDENTIALS
 conf = ConnectionConfig(
-    MAIL_USERNAME = "abc@gmail.com", # YOUR REAL GMAIL
-    MAIL_PASSWORD = "xxxx xxxx xxxx xxxx",       # YOUR 16-DIGIT APP PASSWORD
-    MAIL_FROM = "abc",     # MUST MATCH USERNAME
+    MAIL_USERNAME = "codestatic.ai@gmail.com", # YOUR REAL GMAIL
+    MAIL_PASSWORD = "ungygdxzpjztqavc",       # YOUR 16-DIGIT APP PASSWORD
+    MAIL_FROM = "codestatic.ai@gmail.com",     # MUST MATCH USERNAME
     MAIL_PORT = 465,
     MAIL_SERVER = "smtp.gmail.com",
     MAIL_STARTTLS = False,

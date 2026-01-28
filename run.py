@@ -220,20 +220,20 @@ DB_PORT = int(os.getenv("DB_PORT", 25214)) # It will read 25390 from Render
 # )
 # ✅ CORRECT CONFIGURATION (Matches your working Test Script)
 mail_conf = ConnectionConfig(
-    MAIL_USERNAME=os.getenv("MAIL_USERNAME"),
-    MAIL_PASSWORD=os.getenv("MAIL_PASSWORD"),
+    MAIL_USERNAME=os.getenv("MAIL_USERNAME","codestatic.ai@gmail.com"),
+    MAIL_PASSWORD=os.getenv("MAIL_PASSWORD",""),
     
     # ⚠️ CRITICAL: Gmail blocks emails if "From" doesn't match "Username"
     # We force it to match your login email to prevent "Silent Death"
-    MAIL_FROM=os.getenv("MAIL_USERNAME"), 
+    MAIL_FROM=os.getenv("MAIL_USERNAME","codestatic.ai@gmail.com"), 
     
     # ✅ USE PORT 465 (SSL) - This is what worked in your test
-    MAIL_PORT=465,
+    MAIL_PORT=587,
     MAIL_SERVER="smtp.gmail.com",
     
     # ✅ SSL SETTINGS (Must match Port 465)
-    MAIL_STARTTLS=False,
-    MAIL_SSL_TLS=True,
+    MAIL_STARTTLS=True,
+    MAIL_SSL_TLS=False,
     
     USE_CREDENTIALS=True,
     VALIDATE_CERTS=True
