@@ -36,6 +36,35 @@ from fastapi_sso.sso.microsoft import MicrosoftSSO
 from fastapi_mail import FastMail, MessageSchema, ConnectionConfig, MessageType
 
 #latest added
+def send_admin_feedback_alert(user_email, user_name, message, rating):
+    # This sends an email TO YOU (The Admin) when someone submits feedback
+    admin_email = os.getenv("MAIL_USERNAME", "codestatic.ai@gmail.com")
+    
+    msg = MIMEMultipart()
+    msg["From"] = admin_email
+    msg["To"] = admin_email  # Send to yourself
+    msg["Subject"] = f"🔔 New Feedback from {user_name}"
+    
+    body = f"""
+    <h3>New User Feedback</h3>
+    <p><strong>User:</strong> {user_name} ({user_email})</p>
+    <p><strong>Rating:</strong> {rating} / 5</p>
+    <hr>
+    <p><strong>Message:</strong></p>
+    <p>{message}</p>
+    """
+    msg.attach(MIMEText(body, "html", "utf-8"))
+    
+    try:
+        server = smtplib.SMTP_SSL("smtp.gmail.com", 465, timeout=30)
+        server.login(admin_email, os.getenv("MAIL_PASSWORD"))
+        server.sendmail(admin_email, admin_email, msg.as_string())
+        server.quit()
+        print("✅ ADMIN ALERT SENT")
+    except Exception as e:
+        print(f"❌ FAILED TO SEND ADMIN ALERT: {e}")
+        
+    
 def send_otp_email(email: str, otp: str):
     print(f"📧 SENDING OTP TO: {email}")
     
@@ -872,6 +901,11 @@ async def submit_feedback(request: Request):
         # 4. (Optional) Send Email to Admin directly
         # If you have an admin email function, call it here:
         # send_admin_notification(email, message, rating)
+        #🔥 TRIGGER EMAIL (This was missing before)
+        try:
+            send_admin_feedback_alert(email, name, message, rating)
+        except:
+            pass # Don't crash if email fails, just log i
         
         return {"status": "success", "message": "Feedback Received"}
         
@@ -955,9 +989,16 @@ async def save_project(request: Request):
         return JSONResponse({"status": "error", "message": "Not logged in"}, status_code=401)
     
     data = await request.json()
-    # Support both 'projectName' (frontend) and 'name'
-    name = data.get("projectName") or data.get("name")
-    code = data.get("code")
+    
+    # ✅ FIX: Robust Name Extraction
+    # We check 'name', 'projectName', and 'title' to be safe.
+    name = data.get("name") or data.get("projectName") or "Untitled Project"
+    
+    # Prevent "undefined" string if frontend sends it literally
+    if name == "undefined": 
+        name = "Untitled Project"
+        
+    code = data.get("code", "")
     language = data.get("language", "python")
     
     conn = get_connection()
@@ -968,7 +1009,7 @@ async def save_project(request: Request):
                 VALUES (%s, %s, %s, %s)
             """, (user["email"], name, code, language))
         conn.commit()
-        return {"status": "success", "message": "Project Saved"}
+        return {"status": "success", "message": f"Saved as {name}"}
     except Exception as e:
         return JSONResponse({"status": "error", "message": str(e)}, status_code=500)
     finally:
