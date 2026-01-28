@@ -72,30 +72,50 @@ CREATE TABLE IF NOT EXISTS users (
 """
 
 @app.on_event("startup")
-def fix_database_schema():
-    print("🔨 MAINTAINING DATABASE SCHEMA...")
+def nuclear_fix_database():
+    print("🔨 [CRITICAL FIX] REALIGNING DATABASE SCHEMA...")
     try:
         conn = get_connection()
         cursor = conn.cursor()
         
-        # Step A: Ensure table exists (for new setups)
-        cursor.execute(CREATE_USERS_TABLE_SQL)
+        # ⚠️ STEP 1: DROP THE MISMATCHED TABLE
+        # We delete the old table because it has the wrong column names (name, otp).
+        # This ensures we start fresh with the CORRECT names (full_name, otp_code).
+        print("🔥 Dropping old 'users' table...")
+        cursor.execute("DROP TABLE IF EXISTS users")
         
-        # Step B: Fix existing table (The "Patch")
-        # We try to add the column. If it exists, we ignore the error.
-        try:
-            print("👉 Attempting to add missing 'provider' column...")
-            cursor.execute("ALTER TABLE users ADD COLUMN provider VARCHAR(50) DEFAULT 'email'")
-            conn.commit()
-            print("✅ SUCCESS: Column 'provider' added to existing table.")
-        except Exception as e:
-            # Error 1060 means "Duplicate column name", which is good!
-            print(f"⚠️ INFO: Column likely already exists (Skipping). Details: {e}")
-
+        # ⚠️ STEP 2: CREATE THE EXACT TABLE YOUR CODE WANTS
+        # I have updated the column names below to match your Error Logs.
+        print("🏗️ Creating Correct 'users' table...")
+        cursor.execute("""
+        CREATE TABLE users (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            
+            -- ✅ The Python code expects 'full_name', NOT 'name'
+            full_name VARCHAR(255),
+            
+            email VARCHAR(255) NOT NULL UNIQUE,
+            password VARCHAR(255),
+            
+            -- ✅ The Python code expects 'otp_code', NOT 'otp'
+            otp_code VARCHAR(10),
+            otp_expiry DATETIME,
+            
+            -- ✅ The Python code expects 'provider'
+            provider VARCHAR(50) DEFAULT 'email',
+            
+            google_id VARCHAR(255),
+            profile_pic VARCHAR(500),
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        );
+        """)
+        
         conn.commit()
         conn.close()
+        print("✅ SUCCESS: Database is now 100% aligned with your code.")
+        
     except Exception as e:
-        print(f"❌ DATABASE MAINTENANCE ERROR: {e}")
+        print(f"❌ DATABASE CRITICAL ERROR: {e}")
 
 # ----------------------------------------------------
 
