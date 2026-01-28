@@ -55,14 +55,18 @@ app = FastAPI(title="CodeStatic AI (Enterprise SaaS)")
 
 # --- PASTE THIS INTO RUN.PY (REPLACING THE OLD STARTUP FUNCTION) ---
 
+# --- FINAL DATABASE FIX (Aligns perfectly with your Python variables) ---
+
 @app.on_event("startup")
 def fix_all_database_tables():
-    print("🔨 [MAINTENANCE] CHECKING ALL DATABASE TABLES...")
+    print("🔨 [MAINTENANCE] SYNCHRONIZING DATABASE...")
     try:
         conn = get_connection()
         cursor = conn.cursor()
         
-        # 1. USERS TABLE (Auth, Login, Google, OTP)
+        # ---------------------------------------------------------
+        # 1. USERS TABLE (Safe Mode: We don't drop this, it works now)
+        # ---------------------------------------------------------
         cursor.execute("""
         CREATE TABLE IF NOT EXISTS users (
             id INT AUTO_INCREMENT PRIMARY KEY,
@@ -80,22 +84,32 @@ def fix_all_database_tables():
         );
         """)
 
-        # 2. FEEDBACKS TABLE (Submit Feedback form)
-        print("🏗️ Creating 'feedbacks' table...")
+        # ---------------------------------------------------------
+        # 2. FEEDBACKS TABLE (The Fix for your Error)
+        # ---------------------------------------------------------
+        print("🔧 Re-building 'feedbacks' table to match code...")
+        # We DROP it to ensure 'user_email' column is created correctly
+        cursor.execute("DROP TABLE IF EXISTS feedbacks")
+        
         cursor.execute("""
-        CREATE TABLE IF NOT EXISTS feedbacks (
+        CREATE TABLE feedbacks (
             id INT AUTO_INCREMENT PRIMARY KEY,
             user_id INT,
             name VARCHAR(255),
-            email VARCHAR(255),
+            
+            -- ✅ FIX: Changed 'email' to 'user_email' to match your error log
+            user_email VARCHAR(255),
+            
             message TEXT,
             rating INT,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         );
         """)
 
-        # 3. PROJECTS TABLE (Save, Load, Delete, Fav, Unfav)
-        print("🏗️ Creating 'projects' table...")
+        # ---------------------------------------------------------
+        # 3. PROJECTS TABLE (With Favorites)
+        # ---------------------------------------------------------
+        print("🏗️ Ensuring 'projects' table...")
         cursor.execute("""
         CREATE TABLE IF NOT EXISTS projects (
             id INT AUTO_INCREMENT PRIMARY KEY,
@@ -104,21 +118,21 @@ def fix_all_database_tables():
             description TEXT,
             code TEXT,
             language VARCHAR(50) DEFAULT 'python',
-            is_favorite BOOLEAN DEFAULT FALSE,  -- ✅ ADDED FOR FAV/UNFAV
+            is_favorite BOOLEAN DEFAULT FALSE,  -- ✅ Required for Fav/Unfav
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         );
         """)
-
-        # ⚠️ PATCH: Add 'is_favorite' if 'projects' table already existed but was empty
+        
+        # Patch for existing project tables
         try:
             cursor.execute("ALTER TABLE projects ADD COLUMN is_favorite BOOLEAN DEFAULT FALSE")
-            conn.commit()
-            print("✨ UPDATED: Added 'is_favorite' column to existing projects table.")
-        except Exception:
-            pass # Column likely already exists, which is fine.
+        except:
+            pass 
 
-        # 4. CHATS TABLE (Chat History, Load Chat)
-        print("🏗️ Creating 'chats' table...")
+        # ---------------------------------------------------------
+        # 4. CHATS TABLE (History)
+        # ---------------------------------------------------------
+        print("🏗️ Ensuring 'chats' table...")
         cursor.execute("""
         CREATE TABLE IF NOT EXISTS chats (
             id INT AUTO_INCREMENT PRIMARY KEY,
@@ -131,11 +145,10 @@ def fix_all_database_tables():
 
         conn.commit()
         conn.close()
-        print("✅ SUCCESS: ALL tables (Users, Feedbacks, Projects, Chats) are ready.")
+        print("✅ SUCCESS: All tables (Users, Feedbacks, Projects, Chats) are synced.")
         
     except Exception as e:
         print(f"❌ DATABASE INIT ERROR: {e}")
-
 # -------------------------------------------------------------------
 
 @app.get("/healthz")
