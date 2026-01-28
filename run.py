@@ -53,12 +53,16 @@ print("✅ [CHECKPOINT] Environment Variables Loaded")
 # 2. SETUP FASTAPI APP
 app = FastAPI(title="CodeStatic AI (Enterprise SaaS)")
 
+# --- REPLACE YOUR PREVIOUS STARTUP CODE WITH THIS ---
+
+# 1. Updated SQL (Includes the missing 'provider' column now)
 CREATE_USERS_TABLE_SQL = """
 CREATE TABLE IF NOT EXISTS users (
     id INT AUTO_INCREMENT PRIMARY KEY,
     email VARCHAR(255) NOT NULL UNIQUE,
     password VARCHAR(255),
     name VARCHAR(255),
+    provider VARCHAR(50) DEFAULT 'email',  -- <--- ADDED THIS
     google_id VARCHAR(255),
     profile_pic VARCHAR(500),
     otp VARCHAR(10),
@@ -67,21 +71,33 @@ CREATE TABLE IF NOT EXISTS users (
 );
 """
 
-# 2. Startup Event - Runs automatically when Render starts
 @app.on_event("startup")
-def init_db_tables():
-    print("🔨 CHECKING DATABASE TABLES...")
+def fix_database_schema():
+    print("🔨 MAINTAINING DATABASE SCHEMA...")
     try:
-        # This uses your existing, working get_connection function
-        conn = get_connection() 
+        conn = get_connection()
         cursor = conn.cursor()
+        
+        # Step A: Ensure table exists (for new setups)
         cursor.execute(CREATE_USERS_TABLE_SQL)
+        
+        # Step B: Fix existing table (The "Patch")
+        # We try to add the column. If it exists, we ignore the error.
+        try:
+            print("👉 Attempting to add missing 'provider' column...")
+            cursor.execute("ALTER TABLE users ADD COLUMN provider VARCHAR(50) DEFAULT 'email'")
+            conn.commit()
+            print("✅ SUCCESS: Column 'provider' added to existing table.")
+        except Exception as e:
+            # Error 1060 means "Duplicate column name", which is good!
+            print(f"⚠️ INFO: Column likely already exists (Skipping). Details: {e}")
+
         conn.commit()
         conn.close()
-        print("✅ SUCCESS: 'users' table exists or was created.")
     except Exception as e:
-        print(f"❌ DATABASE INIT ERROR: {e}")
-# -----------------------------------
+        print(f"❌ DATABASE MAINTENANCE ERROR: {e}")
+
+# ----------------------------------------------------
 
 @app.get("/healthz")
 def health_check():
