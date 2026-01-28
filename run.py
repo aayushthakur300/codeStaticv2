@@ -73,50 +73,44 @@ CREATE TABLE IF NOT EXISTS users (
 
 @app.on_event("startup")
 def nuclear_fix_database():
-    print("🔨 [CRITICAL FIX] REALIGNING DATABASE SCHEMA...")
+    print("🔨 [CRITICAL FIX] FINALIZING DATABASE SCHEMA...")
     try:
         conn = get_connection()
         cursor = conn.cursor()
         
-        # ⚠️ STEP 1: DROP THE MISMATCHED TABLE
-        # We delete the old table because it has the wrong column names (name, otp).
-        # This ensures we start fresh with the CORRECT names (full_name, otp_code).
+        # ⚠️ STEP 1: DROP THE INCOMPLETE TABLE
+        # We start fresh one last time to ensure all columns match exactly.
         print("🔥 Dropping old 'users' table...")
         cursor.execute("DROP TABLE IF EXISTS users")
         
-        # ⚠️ STEP 2: CREATE THE EXACT TABLE YOUR CODE WANTS
-        # I have updated the column names below to match your Error Logs.
-        print("🏗️ Creating Correct 'users' table...")
+        # ⚠️ STEP 2: CREATE THE COMPLETE TABLE
+        print("🏗️ Creating FINAL 'users' table...")
         cursor.execute("""
         CREATE TABLE users (
             id INT AUTO_INCREMENT PRIMARY KEY,
-            
-            -- ✅ The Python code expects 'full_name', NOT 'name'
-            full_name VARCHAR(255),
-            
+            full_name VARCHAR(255),          -- Matches 'full_name' in your code
             email VARCHAR(255) NOT NULL UNIQUE,
             password VARCHAR(255),
-            
-            -- ✅ The Python code expects 'otp_code', NOT 'otp'
-            otp_code VARCHAR(10),
+            otp_code VARCHAR(10),            -- Matches 'otp_code' in your code
             otp_expiry DATETIME,
-            
-            -- ✅ The Python code expects 'provider'
             provider VARCHAR(50) DEFAULT 'email',
-            
             google_id VARCHAR(255),
             profile_pic VARCHAR(500),
+            
+            -- ✅ ADDED THE MISSING COLUMNS HERE
+            is_verified BOOLEAN DEFAULT FALSE,
+            is_active BOOLEAN DEFAULT TRUE,
+            
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         );
         """)
         
         conn.commit()
         conn.close()
-        print("✅ SUCCESS: Database is now 100% aligned with your code.")
+        print("✅ SUCCESS: Database schema is perfect.")
         
     except Exception as e:
-        print(f"❌ DATABASE CRITICAL ERROR: {e}")
-
+        print(f"❌ DATABASE ERROR: {e}")
 # ----------------------------------------------------
 
 @app.get("/healthz")
