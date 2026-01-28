@@ -165,21 +165,42 @@ DB_PASSWORD = os.getenv("MYSQL_PASSWORD", "")
 DB_NAME = os.getenv("MYSQL_DB", "codestatic_db")
 DB_PORT = int(os.getenv("DB_PORT", 25214)) # It will read 25390 from Render
 
-# Email Config (SMTP)
+#------------------------------------------------------------------------------------
+# # Email Config (SMTP)
+# mail_conf = ConnectionConfig(
+#     MAIL_USERNAME=os.getenv("MAIL_USERNAME", "your-email@gmail.com"),
+#     MAIL_PASSWORD=os.getenv("MAIL_PASSWORD", ""),
+#     # MAIL_FROM=os.getenv("MAIL_USERNAME", "admin@localhost"),
+#     # Change "admin@localhost" to something with a domain
+#     MAIL_FROM=os.getenv("MAIL_FROM", "admin@codestatic.ai"),
+#     MAIL_PORT=587,
+#     MAIL_SERVER="smtp.gmail.com",
+#     MAIL_STARTTLS=True,
+#     MAIL_SSL_TLS=False,
+#     USE_CREDENTIALS=True,
+#     VALIDATE_CERTS=True
+# )
+# ✅ CORRECT CONFIGURATION (Matches your working Test Script)
 mail_conf = ConnectionConfig(
-    MAIL_USERNAME=os.getenv("MAIL_USERNAME", "your-email@gmail.com"),
-    MAIL_PASSWORD=os.getenv("MAIL_PASSWORD", ""),
-    # MAIL_FROM=os.getenv("MAIL_USERNAME", "admin@localhost"),
-    # Change "admin@localhost" to something with a domain
-    MAIL_FROM=os.getenv("MAIL_FROM", "admin@codestatic.ai"),
-    MAIL_PORT=587,
+    MAIL_USERNAME=os.getenv("MAIL_USERNAME"),
+    MAIL_PASSWORD=os.getenv("MAIL_PASSWORD"),
+    
+    # ⚠️ CRITICAL: Gmail blocks emails if "From" doesn't match "Username"
+    # We force it to match your login email to prevent "Silent Death"
+    MAIL_FROM=os.getenv("MAIL_USERNAME"), 
+    
+    # ✅ USE PORT 465 (SSL) - This is what worked in your test
+    MAIL_PORT=465,
     MAIL_SERVER="smtp.gmail.com",
-    MAIL_STARTTLS=True,
-    MAIL_SSL_TLS=False,
+    
+    # ✅ SSL SETTINGS (Must match Port 465)
+    MAIL_STARTTLS=False,
+    MAIL_SSL_TLS=True,
+    
     USE_CREDENTIALS=True,
     VALIDATE_CERTS=True
 )
-   
+#-------------------------------------------------------------------------------
 # AI Config
 api_key = os.getenv("GEMINI_API_KEY")
 if api_key:

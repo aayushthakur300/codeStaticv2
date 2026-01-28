@@ -3,7 +3,7 @@ import ssl
 
 # ⚠️ REPLACE WITH YOUR REAL DETAILS FOR THIS ONE-TIME SCRIPT
 DB_HOST = "mysql-3d5f002c-codestatic-ffd8.h.aivencloud.com"
-DB_PORT = 25214
+DB_PORT = 1234 # put real db port number
 DB_USER = "avnadmin"
 DB_PASS = "PASTE_YOUR_REAL_AIVEN_PASSWORD_HERE" # <--- UPDATE THIS
 DB_NAME = "defaultdb"
