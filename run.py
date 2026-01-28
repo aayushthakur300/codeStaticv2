@@ -10,6 +10,7 @@ import string
 import datetime
 import pymysql
 import pymysql.cursors
+import ssl
 from pathlib import Path
 from typing import List, Optional, Any
 
@@ -102,7 +103,7 @@ DB_HOST = os.getenv("DB_HOST", "DB_HOST")
 DB_USER = os.getenv("MYSQL_USER", "root")
 DB_PASSWORD = os.getenv("MYSQL_PASSWORD", "")
 DB_NAME = os.getenv("MYSQL_DB", "codestatic_db")
-DB_PORT = int(os.getenv("DB_PORT", 3306)) # It will read 25390 from Render
+DB_PORT = int(os.getenv("DB_PORT", 25214)) # It will read 25390 from Render
 
 # Email Config (SMTP)
 mail_conf = ConnectionConfig(
@@ -216,6 +217,9 @@ microsoft_sso = MicrosoftSSO(
 # 🔹 DATABASE HELPERS
 # --------------------------------------------------------------------
 def get_connection():
+    ssl_context = ssl.create_default_context()  # 👈 USED HERE
+    ssl_context.check_hostname = False
+    ssl_context.verify_mode = ssl.CERT_NONE
     print("--------------------------------------------------")
     print(f"🔍 DEBUG DATABASE: Trying to connect to host: '{DB_HOST}'")
     print("--------------------------------------------------")
@@ -227,6 +231,8 @@ def get_connection():
             password=DB_PASSWORD,
             database=DB_NAME,
             charset='utf8mb4',
+            port=int(os.getenv("DB_PORT", 25214)),
+            ssl=ssl_context,
             cursorclass=pymysql.cursors.DictCursor
         )
     except Exception as e:
