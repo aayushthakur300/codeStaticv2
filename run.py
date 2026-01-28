@@ -217,22 +217,29 @@ microsoft_sso = MicrosoftSSO(
 # 🔹 DATABASE HELPERS
 # --------------------------------------------------------------------
 def get_connection():
-    ssl_context = ssl.create_default_context()  # 👈 USED HERE
-    ssl_context.check_hostname = False
-    ssl_context.verify_mode = ssl.CERT_NONE
+    # Define the path where Render mounts the Secret File
+    ca_path = "/etc/secrets/ca.pem"
+
+    # Check if the file actually exists (Safety Check)
+    ssl_config = None
+    if os.path.exists(ca_path):
+        print(f"🔒 SSL: Found CA Certificate at {ca_path}")
+        ssl_config = {'ca': ca_path}
+    else:
+        print("⚠️ SSL: CA Certificate NOT found! Connection might fail.")
     print("--------------------------------------------------")
     print(f"🔍 DEBUG DATABASE: Trying to connect to host: '{DB_HOST}'")
     print("--------------------------------------------------")
     """Creates a fresh connection to MySQL"""
     try:
         return pymysql.connect(
-            host=DB_HOST,
-            user=DB_USER,
-            password=DB_PASSWORD,
-            database=DB_NAME,
+            host=os.getenv("DB_HOST"),
+            user=os.getenv("DB_USER"),
+            password=os.getenv("DB_PASSWORD"),
+            database=os.getenv("DB_NAME", "defaultdb"),
             charset='utf8mb4',
             port=int(os.getenv("DB_PORT", 25214)),
-            ssl=ssl_context,
+            ssl=ssl_config,
             cursorclass=pymysql.cursors.DictCursor
         )
     except Exception as e:
