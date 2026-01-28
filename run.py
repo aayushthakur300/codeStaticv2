@@ -53,65 +53,90 @@ print("✅ [CHECKPOINT] Environment Variables Loaded")
 # 2. SETUP FASTAPI APP
 app = FastAPI(title="CodeStatic AI (Enterprise SaaS)")
 
-# --- REPLACE YOUR PREVIOUS STARTUP CODE WITH THIS ---
-
-# 1. Updated SQL (Includes the missing 'provider' column now)
-CREATE_USERS_TABLE_SQL = """
-CREATE TABLE IF NOT EXISTS users (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    email VARCHAR(255) NOT NULL UNIQUE,
-    password VARCHAR(255),
-    name VARCHAR(255),
-    provider VARCHAR(50) DEFAULT 'email',  -- <--- ADDED THIS
-    google_id VARCHAR(255),
-    profile_pic VARCHAR(500),
-    otp VARCHAR(10),
-    otp_expiry DATETIME,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
-"""
+# --- PASTE THIS INTO RUN.PY (REPLACING THE OLD STARTUP FUNCTION) ---
 
 @app.on_event("startup")
-def nuclear_fix_database():
-    print("🔨 [CRITICAL FIX] FINALIZING DATABASE SCHEMA...")
+def fix_all_database_tables():
+    print("🔨 [MAINTENANCE] CHECKING ALL DATABASE TABLES...")
     try:
         conn = get_connection()
         cursor = conn.cursor()
         
-        # ⚠️ STEP 1: DROP THE INCOMPLETE TABLE
-        # We start fresh one last time to ensure all columns match exactly.
-        print("🔥 Dropping old 'users' table...")
-        cursor.execute("DROP TABLE IF EXISTS users")
-        
-        # ⚠️ STEP 2: CREATE THE COMPLETE TABLE
-        print("🏗️ Creating FINAL 'users' table...")
+        # 1. USERS TABLE (Auth, Login, Google, OTP)
         cursor.execute("""
-        CREATE TABLE users (
+        CREATE TABLE IF NOT EXISTS users (
             id INT AUTO_INCREMENT PRIMARY KEY,
-            full_name VARCHAR(255),          -- Matches 'full_name' in your code
+            full_name VARCHAR(255),
             email VARCHAR(255) NOT NULL UNIQUE,
             password VARCHAR(255),
-            otp_code VARCHAR(10),            -- Matches 'otp_code' in your code
+            otp_code VARCHAR(10),
             otp_expiry DATETIME,
             provider VARCHAR(50) DEFAULT 'email',
             google_id VARCHAR(255),
             profile_pic VARCHAR(500),
-            
-            -- ✅ ADDED THE MISSING COLUMNS HERE
             is_verified BOOLEAN DEFAULT FALSE,
             is_active BOOLEAN DEFAULT TRUE,
-            
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         );
         """)
-        
+
+        # 2. FEEDBACKS TABLE (Submit Feedback form)
+        print("🏗️ Creating 'feedbacks' table...")
+        cursor.execute("""
+        CREATE TABLE IF NOT EXISTS feedbacks (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            user_id INT,
+            name VARCHAR(255),
+            email VARCHAR(255),
+            message TEXT,
+            rating INT,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        );
+        """)
+
+        # 3. PROJECTS TABLE (Save, Load, Delete, Fav, Unfav)
+        print("🏗️ Creating 'projects' table...")
+        cursor.execute("""
+        CREATE TABLE IF NOT EXISTS projects (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            user_id INT,
+            name VARCHAR(255),
+            description TEXT,
+            code TEXT,
+            language VARCHAR(50) DEFAULT 'python',
+            is_favorite BOOLEAN DEFAULT FALSE,  -- ✅ ADDED FOR FAV/UNFAV
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        );
+        """)
+
+        # ⚠️ PATCH: Add 'is_favorite' if 'projects' table already existed but was empty
+        try:
+            cursor.execute("ALTER TABLE projects ADD COLUMN is_favorite BOOLEAN DEFAULT FALSE")
+            conn.commit()
+            print("✨ UPDATED: Added 'is_favorite' column to existing projects table.")
+        except Exception:
+            pass # Column likely already exists, which is fine.
+
+        # 4. CHATS TABLE (Chat History, Load Chat)
+        print("🏗️ Creating 'chats' table...")
+        cursor.execute("""
+        CREATE TABLE IF NOT EXISTS chats (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            user_id INT,
+            user_message TEXT,
+            ai_response TEXT,
+            timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        );
+        """)
+
         conn.commit()
         conn.close()
-        print("✅ SUCCESS: Database schema is perfect.")
+        print("✅ SUCCESS: ALL tables (Users, Feedbacks, Projects, Chats) are ready.")
         
     except Exception as e:
-        print(f"❌ DATABASE ERROR: {e}")
-# ----------------------------------------------------
+        print(f"❌ DATABASE INIT ERROR: {e}")
+
+# -------------------------------------------------------------------
 
 @app.get("/healthz")
 def health_check():
