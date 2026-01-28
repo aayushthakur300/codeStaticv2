@@ -53,6 +53,36 @@ print("✅ [CHECKPOINT] Environment Variables Loaded")
 # 2. SETUP FASTAPI APP
 app = FastAPI(title="CodeStatic AI (Enterprise SaaS)")
 
+CREATE_USERS_TABLE_SQL = """
+CREATE TABLE IF NOT EXISTS users (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    email VARCHAR(255) NOT NULL UNIQUE,
+    password VARCHAR(255),
+    name VARCHAR(255),
+    google_id VARCHAR(255),
+    profile_pic VARCHAR(500),
+    otp VARCHAR(10),
+    otp_expiry DATETIME,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+"""
+
+# 2. Startup Event - Runs automatically when Render starts
+@app.on_event("startup")
+def init_db_tables():
+    print("🔨 CHECKING DATABASE TABLES...")
+    try:
+        # This uses your existing, working get_connection function
+        conn = get_connection() 
+        cursor = conn.cursor()
+        cursor.execute(CREATE_USERS_TABLE_SQL)
+        conn.commit()
+        conn.close()
+        print("✅ SUCCESS: 'users' table exists or was created.")
+    except Exception as e:
+        print(f"❌ DATABASE INIT ERROR: {e}")
+# -----------------------------------
+
 @app.get("/healthz")
 def health_check():
     return {"status": "ok"}
