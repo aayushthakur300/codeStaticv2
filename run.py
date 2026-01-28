@@ -102,6 +102,7 @@ DB_HOST = os.getenv("DB_HOST", "DB_HOST")
 DB_USER = os.getenv("MYSQL_USER", "root")
 DB_PASSWORD = os.getenv("MYSQL_PASSWORD", "")
 DB_NAME = os.getenv("MYSQL_DB", "codestatic_db")
+DB_PORT = int(os.getenv("DB_PORT", 3306)) # It will read 25390 from Render
 
 # Email Config (SMTP)
 mail_conf = ConnectionConfig(
