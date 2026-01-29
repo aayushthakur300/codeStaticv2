@@ -158,65 +158,25 @@ async function loadLastSavedCode() {
     }
 }
 
-// async function saveProject() {
-//     const name = prompt("Enter project name:");
-//     if (!name) return;
-
-//     const el = document.getElementById("codeInput") || document.getElementById("inputCode");
-//     const code = el.value.trim();
-//     const language = document.getElementById("languageSelect") ? document.getElementById("languageSelect").value : document.getElementById("targetLang").value;
-
-//     const res = await fetch("/save-project", {
-//         method: "POST",
-//         headers: { "Content-Type": "application/json" },
-//         body: JSON.stringify({ projectName: name, code, language })
-//     });
-
-//     const data = await res.json();
-
-//     if (data.status === "success") {
-//         alert("Project saved!");
-//         loadProjects();
-//     }
-// }
 async function saveProject() {
-    // 1. Get the value from the Input Field
-    // MAKE SURE your HTML input has id="projectNameInput"
-    const nameInput = document.getElementById("projectNameInput");
-    const projectName = nameInput ? nameInput.value : "Untitled Project";
-    
-    // 2. Get the Code (Assuming you use Monaco or a textarea)
-    // If using Monaco: window.editor.getValue()
-    // If using textarea: document.getElementById("codeInput").value
-    const codeContent = window.editor ? window.editor.getValue() : ""; 
+    const name = prompt("Enter project name:");
+    if (!name) return;
 
-    if (!projectName) {
-        alert("Please enter a project name!");
-        return;
-    }
+    const el = document.getElementById("codeInput") || document.getElementById("inputCode");
+    const code = el.value.trim();
+    const language = document.getElementById("languageSelect") ? document.getElementById("languageSelect").value : document.getElementById("targetLang").value;
 
-    const payload = {
-        name: projectName,   // ✅ Key must be 'name'
-        code: codeContent,
-        description: "Saved via Web Interface"
-    };
+    const res = await fetch("/save-project", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ projectName: name, code, language })
+    });
 
-    try {
-        const response = await fetch("/save-project", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(payload)
-        });
-        
-        const result = await response.json();
-        if(result.status === "success") {
-            alert("Project Saved Successfully!");
-        } else {
-            alert("Error: " + result.message);
-        }
-    } catch (e) {
-        console.error(e);
-        alert("Network Error");
+    const data = await res.json();
+
+    if (data.status === "success") {
+        alert("Project saved!");
+        loadProjects();
     }
 }
 

@@ -36,74 +36,6 @@ from fastapi_sso.sso.microsoft import MicrosoftSSO
 from fastapi_mail import FastMail, MessageSchema, ConnectionConfig, MessageType
 
 #latest added
-def send_admin_feedback_alert(user_email, user_name, message, rating):
-    # This sends an email TO YOU (The Admin) when someone submits feedback
-    admin_email = os.getenv("MAIL_USERNAME", "codestatic.ai@gmail.com")
-    
-    msg = MIMEMultipart()
-    msg["From"] = admin_email
-    msg["To"] = admin_email  # Send to yourself
-    msg["Subject"] = f"🔔 New Feedback from {user_name}"
-    
-    body = f"""
-    <h3>New User Feedback</h3>
-    <p><strong>User:</strong> {user_name} ({user_email})</p>
-    <p><strong>Rating:</strong> {rating} / 5</p>
-    <hr>
-    <p><strong>Message:</strong></p>
-    <p>{message}</p>
-    """
-    msg.attach(MIMEText(body, "html", "utf-8"))
-    
-    try:
-        server = smtplib.SMTP_SSL("smtp.gmail.com", 465, timeout=30)
-        server.login(admin_email, os.getenv("MAIL_PASSWORD"))
-        server.sendmail(admin_email, admin_email, msg.as_string())
-        server.quit()
-        print("✅ ADMIN ALERT SENT")
-    except Exception as e:
-        print(f"❌ FAILED TO SEND ADMIN ALERT: {e}")
-        
-    
-def send_otp_email(email: str, otp: str):
-    print(f"📧 SENDING OTP TO: {email}")
-    
-    sender_email = os.getenv("MAIL_USERNAME", "codestatic.ai@gmail.com")
-    sender_password = os.getenv("MAIL_PASSWORD")
-    
-    # 1. Setup Message with UTF-8 support
-    message = MIMEMultipart()
-    message["From"] = sender_email
-    message["To"] = email
-    message["Subject"] = "Your Verification Code"
-    
-    body = f"""
-    <div style="font-family: Arial, sans-serif; padding: 20px;">
-        <h2>🔐 Login Verification</h2>
-        <p>Your OTP code is:</p>
-        <h1 style="color: #4CAF50; letter-spacing: 5px;">{otp}</h1>
-        <p>This code expires in 10 minutes.</p>
-    </div>
-    """
-    
-    # ✅ FIX: Explicitly set utf-8 encoding to prevent crashes with symbols
-    message.attach(MIMEText(body, "html", "utf-8"))
-    
-    try:
-        # 2. Connect via SSL (Port 465)
-        # timeout=30 prevents it from hanging forever
-        server = smtplib.SMTP_SSL("smtp.gmail.com", 465, timeout=30)
-        
-        server.login(sender_email, sender_password)
-        server.sendmail(sender_email, email, message.as_string())
-        server.quit()
-        print("✅ EMAIL SENT SUCCESSFULLY")
-        return True
-        
-    except Exception as e:
-        print(f"❌ EMAIL FAILED: {e}")
-        # We re-raise the error so the route knows it failed
-        raise e
 
 # --- 💀 SILENT KILLER DETECTION: GLOBAL CRASH HANDLER ---
 def crash_handler(exctype, value, tb):
@@ -129,83 +61,6 @@ app = FastAPI(title="CodeStatic AI (Enterprise SaaS)")
 
 
 # --- REPLACE YOUR STARTUP EVENT IN RUN.PY ---
-
-@app.on_event("startup")
-def fix_all_database_tables():
-    print("🔨 [MAINTENANCE] SYNCHRONIZING DATABASE TO SESSION...")
-    try:
-        conn = get_connection()
-        cursor = conn.cursor()
-        
-        # 1. USERS TABLE (Standard)
-        cursor.execute("""
-        CREATE TABLE IF NOT EXISTS users (
-            id INT AUTO_INCREMENT PRIMARY KEY,
-            full_name VARCHAR(255),
-            email VARCHAR(255) NOT NULL UNIQUE,
-            password VARCHAR(255),
-            otp_code VARCHAR(10),
-            otp_expiry DATETIME,
-            provider VARCHAR(50) DEFAULT 'email',
-            google_id VARCHAR(255),
-            profile_pic VARCHAR(500),
-            is_verified BOOLEAN DEFAULT FALSE,
-            is_active BOOLEAN DEFAULT TRUE,
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        );
-        """)
-
-        # 2. PROJECTS TABLE (Switching user_id -> user_email)
-        print("🔧 Re-building 'projects' table...")
-        cursor.execute("DROP TABLE IF EXISTS projects")
-        cursor.execute("""
-        CREATE TABLE projects (
-            id INT AUTO_INCREMENT PRIMARY KEY,
-            user_email VARCHAR(255),  -- ✅ MATCHES SESSION
-            name VARCHAR(255),
-            description TEXT,
-            code TEXT,
-            language VARCHAR(50) DEFAULT 'python',
-            is_favorite BOOLEAN DEFAULT FALSE,
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        );
-        """)
-
-        # 3. FEEDBACKS TABLE
-        print("🔧 Re-building 'feedbacks' table...")
-        cursor.execute("DROP TABLE IF EXISTS feedbacks")
-        cursor.execute("""
-        CREATE TABLE feedbacks (
-            id INT AUTO_INCREMENT PRIMARY KEY,
-            user_email VARCHAR(255),  -- ✅ MATCHES SESSION
-            name VARCHAR(255),
-            message TEXT,
-            rating INT,
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        );
-        """)
-
-        # 4. CHATS TABLE (Switching user_id -> user_email)
-        print("🔧 Re-building 'chats' table...")
-        cursor.execute("DROP TABLE IF EXISTS chats")
-        cursor.execute("""
-        CREATE TABLE chats (
-            id INT AUTO_INCREMENT PRIMARY KEY,
-            user_email VARCHAR(255),  -- ✅ MATCHES SESSION
-            user_message TEXT,
-            ai_response TEXT,
-            timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        );
-        """)
-
-        conn.commit()
-        conn.close()
-        print("✅ SUCCESS: Database is now 100% synced with Session data.")
-        
-    except Exception as e:
-        print(f"❌ DATABASE INIT ERROR: {e}")
-# -------------------------------------------------------------------
-
 @app.get("/healthz")
 def health_check():
     return {"status": "ok"}
@@ -252,47 +107,28 @@ except ImportError:
 
 # Database Config
 # DB_HOST = os.getenv("MYSQL_HOST", "localhost")
-DB_HOST = os.getenv("DB_HOST", "DB_HOST")
+DB_HOST = os.getenv("MYSQL_HOST", "MYSQL_HOST")
 DB_USER = os.getenv("MYSQL_USER", "root")
 DB_PASSWORD = os.getenv("MYSQL_PASSWORD", "")
 DB_NAME = os.getenv("MYSQL_DB", "codestatic_db")
-DB_PORT = int(os.getenv("DB_PORT", 25214)) # It will read 25390 from Render
+DB_PORT = int(os.getenv("DB_PORT", 3306)) # Added Port Support
 
 #------------------------------------------------------------------------------------
-# # Email Config (SMTP)
-# mail_conf = ConnectionConfig(
-#     MAIL_USERNAME=os.getenv("MAIL_USERNAME", "your-email@gmail.com"),
-#     MAIL_PASSWORD=os.getenv("MAIL_PASSWORD", ""),
-#     # MAIL_FROM=os.getenv("MAIL_USERNAME", "admin@localhost"),
-#     # Change "admin@localhost" to something with a domain
-#     MAIL_FROM=os.getenv("MAIL_FROM", "admin@codestatic.ai"),
-#     MAIL_PORT=587,
-#     MAIL_SERVER="smtp.gmail.com",
-#     MAIL_STARTTLS=True,
-#     MAIL_SSL_TLS=False,
-#     USE_CREDENTIALS=True,
-#     VALIDATE_CERTS=True
-# )
-# ✅ CORRECT CONFIGURATION (Matches your working Test Script)
+# Email Config (SMTP)
 mail_conf = ConnectionConfig(
-    MAIL_USERNAME=os.getenv("MAIL_USERNAME","codestatic.ai@gmail.com"),
-    MAIL_PASSWORD=os.getenv("MAIL_PASSWORD",""),
-    
-    # ⚠️ CRITICAL: Gmail blocks emails if "From" doesn't match "Username"
-    # We force it to match your login email to prevent "Silent Death"
-    MAIL_FROM=os.getenv("MAIL_USERNAME","codestatic.ai@gmail.com"), 
-    
-    # ✅ USE PORT 465 (SSL) - This is what worked in your test
+    MAIL_USERNAME=os.getenv("MAIL_USERNAME", "your-email@gmail.com"),
+    MAIL_PASSWORD=os.getenv("MAIL_PASSWORD", ""),
+    # MAIL_FROM=os.getenv("MAIL_USERNAME", "admin@localhost"),
+    # Change "admin@localhost" to something with a domain
+    MAIL_FROM=os.getenv("MAIL_FROM", "admin@codestatic.ai"),
     MAIL_PORT=587,
     MAIL_SERVER="smtp.gmail.com",
-    
-    # ✅ SSL SETTINGS (Must match Port 465)
     MAIL_STARTTLS=True,
     MAIL_SSL_TLS=False,
-    
     USE_CREDENTIALS=True,
-    VALIDATE_CERTS=False
+    VALIDATE_CERTS=True
 )
+
 #-------------------------------------------------------------------------------
 # AI Config
 api_key = os.getenv("GEMINI_API_KEY")
@@ -377,47 +213,35 @@ MODEL_ROSTER = [
 google_sso = GoogleSSO(
     client_id=os.getenv("GOOGLE_CLIENT_ID", ""),
     client_secret=os.getenv("GOOGLE_CLIENT_SECRET", ""),
-    # redirect_uri="http://localhost:10000/auth/google/callback"
-    redirect_uri= "https://codestaticv2.onrender.com/auth/google/callback"
+     redirect_uri="http://localhost:10000/auth/google/callback"
+    #redirect_uri= "https://codestaticv2.onrender.com/auth/google/callback"
 )
 
 microsoft_sso = MicrosoftSSO(
     client_id=os.getenv("MS_CLIENT_ID", ""),
     client_secret=os.getenv("MS_CLIENT_SECRET", ""),
-    #redirect_uri="http://localhost:10000/auth/microsoft/callback"
-    redirect_uri= "https://codestaticv2.onrender.com/auth/microsoft/callback"
+    redirect_uri="http://localhost:10000/auth/microsoft/callback"
+    #redirect_uri= "https://codestaticv2.onrender.com/auth/microsoft/callback"
 )
 # --------------------------------------------------------------------
 # 🔹 DATABASE HELPERS
 # --------------------------------------------------------------------
 def get_connection():
-    # Define the path where Render mounts the Secret File
-    ca_path = "/etc/secrets/ca.pem"
-
-    # Check if the file actually exists (Safety Check)
-    ssl_config = None
-    if os.path.exists(ca_path):
-        print(f"🔒 SSL: Found CA Certificate at {ca_path}")
-        ssl_config = {'ca': ca_path}
-    else:
-        print("⚠️ SSL: CA Certificate NOT found! Connection might fail.")
-    print("--------------------------------------------------")
-    print(f"🔍 DEBUG DATABASE: Trying to connect to host: '{DB_HOST}'")
-    print("--------------------------------------------------")
     """Creates a fresh connection to MySQL"""
     try:
         return pymysql.connect(
-            host=os.getenv("DB_HOST"),
-            user=os.getenv("DB_USER"),
-            password=os.getenv("DB_PASSWORD"),
-            database=os.getenv("DB_NAME", "defaultdb"),
+            host=DB_HOST,
+            user=DB_USER,
+            password=DB_PASSWORD,
+            database=DB_NAME,
+            port=DB_PORT,
             charset='utf8mb4',
-            port=int(os.getenv("DB_PORT", 25214)),
-            ssl=ssl_config,
             cursorclass=pymysql.cursors.DictCursor
         )
-    except Exception as e:
-        print(f"💀 [FATAL] Database Connection Failed: {e}")
+    except pymysql.MySQLError as e:
+        print(f"\n💀 [FATAL] Local Database Connection Failed!")
+        print(f"   Error: {e}")
+        print(f"   Check: Is MySQL running? Is the password correct?")
         raise e
 
 def init_db():
@@ -629,33 +453,7 @@ async def send_feedback_notification(user_email: str, rating: int, feedback_msg:
         print(f"💀 [EMAIL ERROR] Failed to notify admin: {e}")
         
 @app.post("/auth/send-otp")
-# async def send_otp(background_tasks: BackgroundTasks, email: str = Form(...)):
-#     # 1. Generate Logic
-#     otp = ''.join(random.choices(string.digits, k=6))
-#     expiry = datetime.datetime.now() + datetime.timedelta(minutes=10)
-    
-#     conn = get_connection()
-#     try:
-#         with conn.cursor() as cur:
-#             # 2. Save to DB (Upsert)
-#             cur.execute("""
-#                 INSERT INTO users (email, provider, otp_code, otp_expiry) 
-#                 VALUES (%s, 'email', %s, %s)
-#                 ON DUPLICATE KEY UPDATE otp_code=%s, otp_expiry=%s
-#             """, (email, otp, expiry, otp, expiry))
-#         conn.commit()
-#     except Exception as e:
-#         print(f"💀 [DB ERROR] OTP Write Failed: {e}")
-#         raise HTTPException(status_code=500, detail="Database Error")
-#     finally:
-#         conn.close()
-
-#     # 3. Send Email (Background)
-#     background_tasks.add_task(send_otp_email, email, otp)
-    
-#     return {"status": "success", "message": "OTP Sent"}
-@app.post("/auth/send-otp")
-async def send_otp(email: str = Form(...)):  # Removed BackgroundTasks
+async def send_otp(background_tasks: BackgroundTasks, email: str = Form(...)):
     # 1. Generate Logic
     otp = ''.join(random.choices(string.digits, k=6))
     expiry = datetime.datetime.now() + datetime.timedelta(minutes=10)
@@ -676,15 +474,8 @@ async def send_otp(email: str = Form(...)):  # Removed BackgroundTasks
     finally:
         conn.close()
 
-    # 3. Send Email (DIRECTLY - No Background Task)
-    # This calls the new sync function we just wrote using smtplib
-    try:
-        send_otp_email(email, otp)
-    except Exception as e:
-        print(f"💀 [EMAIL ERROR] Failed to notify user: {e}")
-        # We return success to the UI so the user isn't confused, 
-        # but check your logs if it fails.
-        return {"status": "error", "message": "Email failed to send"}
+    # 3. Send Email (Background)
+    background_tasks.add_task(send_otp_email, email, otp)
     
     return {"status": "success", "message": "OTP Sent"}
 
@@ -765,362 +556,117 @@ async def logout(request: Request):
 # 🔹 USER DATA API (ISOLATED PER USER)
 # --------------------------------------------------------------------
 
-# @app.post("/submit-feedback")
-# async def submit_feedback(
-#     data: FeedbackData, 
-#     background_tasks: BackgroundTasks,  # <--- INJECTED HERE
-#     user=Depends(get_current_user), 
-#     db=Depends(get_db)
-# ):
-#     try:
-#         # 1. Save to Database (Existing Logic)
-#         cur = db.cursor()
-#         cur.execute("INSERT INTO feedbacks (user_email, message, rating) VALUES (%s, %s, %s)", 
-#                    (user['email'], data.message, data.rating))
-#         db.commit()
-        
-#         # 2. Trigger Email to Admin (New Logic)
-#         # We use background_tasks so the user interface doesn't freeze while sending email.
-#         background_tasks.add_task(
-#             send_feedback_notification, 
-#             user['email'], 
-#             data.rating, 
-#             data.message
-#         )
-
-#         return {"status": "success"}
-#     except Exception as e:
-#         print(f"Feedback Error: {e}")
-#         raise HTTPException(status_code=500, detail=str(e))
-
-# @app.post("/save-code")
-# def save_code(data: CodeData, user=Depends(get_current_user), db=Depends(get_db)):
-#     try:
-#         cur = db.cursor()
-#         # SECURE: Save with user_email
-#         cur.execute("INSERT INTO code_history (code, language, user_email) VALUES (%s, %s, %s)", 
-#                    (data.code, data.language, user['email']))
-#         db.commit()
-#         return {"status": "success", "id": cur.lastrowid}
-#     except Exception as e:
-#         raise HTTPException(status_code=500, detail=str(e))
-
-# @app.get("/load-last-code")
-# def load_last_code(user=Depends(get_current_user), db=Depends(get_db)):
-#     try:
-#         cur = db.cursor()
-#         # SECURE: Filter by user_email
-#         cur.execute("SELECT * FROM code_history WHERE user_email = %s ORDER BY id DESC LIMIT 1", (user['email'],))
-#         row = cur.fetchone()
-#         if not row: return {"status": "success", "data": None}
-#         if 'created_at' in row: row['created_at'] = str(row['created_at'])
-#         return {"status": "success", "data": row}
-#     except Exception as e:
-#         raise HTTPException(status_code=500, detail=str(e))
-
-# @app.post("/save-project")
-# def save_project(data: ProjectData, user=Depends(get_current_user), db=Depends(get_db)):
-#     try:
-#         cur = db.cursor()
-#         cur.execute("INSERT INTO projects (project_name, code, language, user_email) VALUES (%s, %s, %s, %s)",
-#                     (data.projectName, data.code, data.language, user['email']))
-#         db.commit()
-#         return {"status": "success"}
-#     except Exception as e:
-#         raise HTTPException(status_code=500, detail=str(e))
-
-# @app.get("/projects")
-# def get_projects(user=Depends(get_current_user), db=Depends(get_db)):
-#     try:
-#         cur = db.cursor()
-#         # SECURE: Filter by user_email
-#         cur.execute("SELECT * FROM projects WHERE user_email = %s ORDER BY created_at DESC", (user['email'],))
-#         rows = cur.fetchall()
-#         for r in rows: 
-#             if 'created_at' in r: r['created_at'] = str(r['created_at'])
-#         return {"status": "success", "projects": rows}
-#     except Exception as e:
-#         raise HTTPException(status_code=500, detail=str(e))
-
-# @app.post("/favorite-project")
-# def favorite_project(data: FavoriteData, user=Depends(get_current_user), db=Depends(get_db)):
-#     try:
-#         val = 1 if data.fav else 0
-#         cur = db.cursor()
-#         cur.execute("UPDATE projects SET is_favorite = %s WHERE id = %s AND user_email = %s", 
-#                    (val, data.id, user['email']))
-#         db.commit()
-#         return {"status": "success"}
-#     except Exception as e:
-#         raise HTTPException(status_code=500, detail=str(e))
-
-# @app.post("/delete-project")
-# def delete_project(data: DeleteData, user=Depends(get_current_user), db=Depends(get_db)):
-#     try:
-#         cur = db.cursor()
-#         cur.execute("DELETE FROM projects WHERE id = %s AND user_email = %s", (data.id, user['email']))
-#         db.commit()
-#         return {"status": "success"}
-#     except Exception as e:
-#         raise HTTPException(status_code=500, detail=str(e))
-
-# @app.get("/load-chat")
-# def load_chat(user=Depends(get_current_user), db=Depends(get_db)):
-#     try:
-#         cur = db.cursor()
-#         # Filter by User
-#         cur.execute("SELECT * FROM ai_chat WHERE user_email = %s ORDER BY id ASC", (user['email'],))
-#         rows = cur.fetchall()
-#         for r in rows:
-#             if 'created_at' in r: r['created_at'] = str(r['created_at'])
-#         return {"status": "success", "chat": rows}
-#     except Exception as e:
-#         raise HTTPException(status_code=500, detail=str(e))
 @app.post("/submit-feedback")
-async def submit_feedback(request: Request):
-    # 1. Get User Session
-    user = request.session.get("user")
-    
-    # 2. Parse Data
-    data = await request.json()
-    email = user["email"] if user else "Anonymous"
-    name = data.get("name", "Guest")
-    message = data.get("message")
-    rating = data.get("rating")
-    
-    conn = get_connection()
+async def submit_feedback(
+    data: FeedbackData, 
+    background_tasks: BackgroundTasks,  # <--- INJECTED HERE
+    user=Depends(get_current_user), 
+    db=Depends(get_db)
+):
     try:
-        with conn.cursor() as cur:
-            # 3. Save to Database
-            cur.execute("""
-                INSERT INTO feedbacks (user_email, name, message, rating) 
-                VALUES (%s, %s, %s, %s)
-            """, (email, name, message, rating))
-        conn.commit()
+        # 1. Save to Database (Existing Logic)
+        cur = db.cursor()
+        cur.execute("INSERT INTO feedbacks (user_email, message, rating) VALUES (%s, %s, %s)", 
+                   (user['email'], data.message, data.rating))
+        db.commit()
         
-        # 4. (Optional) Send Email to Admin directly
-        # If you have an admin email function, call it here:
-        # send_admin_notification(email, message, rating)
-        #🔥 TRIGGER EMAIL (This was missing before)
-        try:
-            send_admin_feedback_alert(email, name, message, rating)
-        except:
-            pass # Don't crash if email fails, just log i
-        
-        return {"status": "success", "message": "Feedback Received"}
-        
-    except Exception as e:
-        print(f"❌ FEEDBACK ERROR: {e}")
-        return JSONResponse({"status": "error", "message": str(e)}, status_code=500)
-    finally:
-        conn.close()
+        # 2. Trigger Email to Admin (New Logic)
+        # We use background_tasks so the user interface doesn't freeze while sending email.
+        background_tasks.add_task(
+            send_feedback_notification, 
+            user['email'], 
+            data.rating, 
+            data.message
+        )
 
-# ------------------------------------------------------------------
-# 2. CODE HISTORY (Save & Load Last Code)
-# ------------------------------------------------------------------
+        return {"status": "success"}
+    except Exception as e:
+        print(f"Feedback Error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
 @app.post("/save-code")
-async def save_code(request: Request):
-    user = request.session.get("user")
-    if not user:
-        return JSONResponse({"status": "error", "message": "Not logged in"}, status_code=401)
-
-    data = await request.json()
-    code = data.get("code")
-    language = data.get("language")
-
-    conn = get_connection()
+def save_code(data: CodeData, user=Depends(get_current_user), db=Depends(get_db)):
     try:
-        with conn.cursor() as cur:
-            # Ensure table exists on the fly (Safety check)
-            cur.execute("""
-                CREATE TABLE IF NOT EXISTS code_history (
-                    id INT AUTO_INCREMENT PRIMARY KEY,
-                    user_email VARCHAR(255),
-                    code TEXT,
-                    language VARCHAR(50),
-                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-                )
-            """)
-            # Save
-            cur.execute("""
-                INSERT INTO code_history (code, language, user_email) 
-                VALUES (%s, %s, %s)
-            """, (code, language, user["email"]))
-        conn.commit()
-        return {"status": "success", "message": "Code Saved"}
+        cur = db.cursor()
+        # SECURE: Save with user_email
+        cur.execute("INSERT INTO code_history (code, language, user_email) VALUES (%s, %s, %s)", 
+                   (data.code, data.language, user['email']))
+        db.commit()
+        return {"status": "success", "id": cur.lastrowid}
     except Exception as e:
-        return JSONResponse({"status": "error", "message": str(e)}, status_code=500)
-    finally:
-        conn.close()
+        raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/load-last-code")
-async def load_last_code(request: Request):
-    user = request.session.get("user")
-    if not user:
-        return {"status": "success", "data": None} # Return empty for guests
-
-    conn = get_connection()
+def load_last_code(user=Depends(get_current_user), db=Depends(get_db)):
     try:
-        with conn.cursor(pymysql.cursors.DictCursor) as cur:
-            cur.execute("""
-                SELECT * FROM code_history 
-                WHERE user_email = %s 
-                ORDER BY id DESC LIMIT 1
-            """, (user["email"],))
-            row = cur.fetchone()
-            
-            # Convert datetime to string for JSON serialization
-            if row and 'created_at' in row:
-                row['created_at'] = str(row['created_at'])
-                
-            return {"status": "success", "data": row}
+        cur = db.cursor()
+        # SECURE: Filter by user_email
+        cur.execute("SELECT * FROM code_history WHERE user_email = %s ORDER BY id DESC LIMIT 1", (user['email'],))
+        row = cur.fetchone()
+        if not row: return {"status": "success", "data": None}
+        if 'created_at' in row: row['created_at'] = str(row['created_at'])
+        return {"status": "success", "data": row}
     except Exception as e:
-        return JSONResponse({"status": "error", "message": str(e)}, status_code=500)
-    finally:
-        conn.close()
+        raise HTTPException(status_code=500, detail=str(e))
 
-# ------------------------------------------------------------------
-# 3. PROJECTS (Save, Load, Delete, Favorite)
-# ------------------------------------------------------------------
 @app.post("/save-project")
-async def save_project(request: Request):
-    user = request.session.get("user")
-    if not user:
-        return JSONResponse({"status": "error", "message": "Not logged in"}, status_code=401)
-    
-    data = await request.json()
-    
-    # ✅ FIX: Robust Name Extraction
-    # We check 'name', 'projectName', and 'title' to be safe.
-    name = data.get("name") or data.get("projectName") or "Untitled Project"
-    
-    # Prevent "undefined" string if frontend sends it literally
-    if name == "undefined": 
-        name = "Untitled Project"
-        
-    code = data.get("code", "")
-    language = data.get("language", "python")
-    
-    conn = get_connection()
+def save_project(data: ProjectData, user=Depends(get_current_user), db=Depends(get_db)):
     try:
-        with conn.cursor() as cur:
-            cur.execute("""
-                INSERT INTO projects (user_email, name, code, language) 
-                VALUES (%s, %s, %s, %s)
-            """, (user["email"], name, code, language))
-        conn.commit()
-        return {"status": "success", "message": f"Saved as {name}"}
+        cur = db.cursor()
+        cur.execute("INSERT INTO projects (project_name, code, language, user_email) VALUES (%s, %s, %s, %s)",
+                    (data.projectName, data.code, data.language, user['email']))
+        db.commit()
+        return {"status": "success"}
     except Exception as e:
-        return JSONResponse({"status": "error", "message": str(e)}, status_code=500)
-    finally:
-        conn.close()
+        raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/projects")
-async def get_projects(request: Request):
-    user = request.session.get("user")
-    if not user:
-        return JSONResponse({"status": "error", "message": "Not logged in"}, status_code=401)
-
-    conn = get_connection()
+def get_projects(user=Depends(get_current_user), db=Depends(get_db)):
     try:
-        with conn.cursor(pymysql.cursors.DictCursor) as cur:
-            cur.execute("""
-                SELECT * FROM projects 
-                WHERE user_email = %s 
-                ORDER BY created_at DESC
-            """, (user["email"],))
-            projects = cur.fetchall()
-            
-            # Convert datetimes
-            for p in projects:
-                if 'created_at' in p: p['created_at'] = str(p['created_at'])
-                
-            return {"status": "success", "projects": projects}
+        cur = db.cursor()
+        # SECURE: Filter by user_email
+        cur.execute("SELECT * FROM projects WHERE user_email = %s ORDER BY created_at DESC", (user['email'],))
+        rows = cur.fetchall()
+        for r in rows: 
+            if 'created_at' in r: r['created_at'] = str(r['created_at'])
+        return {"status": "success", "projects": rows}
     except Exception as e:
-        return JSONResponse({"status": "error", "message": str(e)}, status_code=500)
-    finally:
-        conn.close()
+        raise HTTPException(status_code=500, detail=str(e))
 
 @app.post("/favorite-project")
-async def favorite_project(request: Request):
-    user = request.session.get("user")
-    if not user:
-        return JSONResponse({"status": "error", "message": "Not logged in"}, status_code=401)
-
-    data = await request.json()
-    project_id = data.get("id")
-    # Support both 'fav' and 'is_favorite' keys
-    is_fav = data.get("fav") if "fav" in data else data.get("is_favorite")
-    
-    conn = get_connection()
+def favorite_project(data: FavoriteData, user=Depends(get_current_user), db=Depends(get_db)):
     try:
-        with conn.cursor() as cur:
-            val = 1 if is_fav else 0
-            cur.execute("""
-                UPDATE projects SET is_favorite = %s 
-                WHERE id = %s AND user_email = %s
-            """, (val, project_id, user["email"]))
-        conn.commit()
+        val = 1 if data.fav else 0
+        cur = db.cursor()
+        cur.execute("UPDATE projects SET is_favorite = %s WHERE id = %s AND user_email = %s", 
+                   (val, data.id, user['email']))
+        db.commit()
         return {"status": "success"}
     except Exception as e:
-        return JSONResponse({"status": "error", "message": str(e)}, status_code=500)
-    finally:
-        conn.close()
+        raise HTTPException(status_code=500, detail=str(e))
 
 @app.post("/delete-project")
-async def delete_project(request: Request):
-    user = request.session.get("user")
-    if not user:
-        return JSONResponse({"status": "error", "message": "Not logged in"}, status_code=401)
-
-    data = await request.json()
-    project_id = data.get("id")
-
-    conn = get_connection()
+def delete_project(data: DeleteData, user=Depends(get_current_user), db=Depends(get_db)):
     try:
-        with conn.cursor() as cur:
-            cur.execute("""
-                DELETE FROM projects 
-                WHERE id = %s AND user_email = %s
-            """, (project_id, user["email"]))
-        conn.commit()
+        cur = db.cursor()
+        cur.execute("DELETE FROM projects WHERE id = %s AND user_email = %s", (data.id, user['email']))
+        db.commit()
         return {"status": "success"}
     except Exception as e:
-        return JSONResponse({"status": "error", "message": str(e)}, status_code=500)
-    finally:
-        conn.close()
+        raise HTTPException(status_code=500, detail=str(e))
 
-# ------------------------------------------------------------------
-# 4. CHAT HISTORY
-# ------------------------------------------------------------------
 @app.get("/load-chat")
-async def load_chat(request: Request):
-    user = request.session.get("user")
-    if not user:
-        return {"status": "success", "chat": []}
-
-    conn = get_connection()
+def load_chat(user=Depends(get_current_user), db=Depends(get_db)):
     try:
-        with conn.cursor(pymysql.cursors.DictCursor) as cur:
-            # We check both 'chats' and 'ai_chat' tables to be safe
-            # Use the one defined in your startup script (likely 'chats')
-            cur.execute("""
-                SELECT * FROM chats 
-                WHERE user_email = %s 
-                ORDER BY id ASC
-            """, (user["email"],))
-            rows = cur.fetchall()
-            
-            for r in rows:
-                if 'timestamp' in r: r['timestamp'] = str(r['timestamp'])
-                if 'created_at' in r: r['created_at'] = str(r['created_at'])
-                
-            return {"status": "success", "chat": rows}
+        cur = db.cursor()
+        # Filter by User
+        cur.execute("SELECT * FROM ai_chat WHERE user_email = %s ORDER BY id ASC", (user['email'],))
+        rows = cur.fetchall()
+        for r in rows:
+            if 'created_at' in r: r['created_at'] = str(r['created_at'])
+        return {"status": "success", "chat": rows}
     except Exception as e:
-        print(f"Chat Load Error: {e}")
-        return {"status": "success", "chat": []} # Return empty if error
-    finally:
-        conn.close()
+        raise HTTPException(status_code=500, detail=str(e))
 # --------------------------------------------------------------------
 # 🔹 CORE ANALYSIS LOGIC (AI, Chat, Reports)
 # --------------------------------------------------------------------

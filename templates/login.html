@@ -57,46 +57,14 @@
         </div>
         <button onclick="requestOtp()" class="primary-btn">Send Magic Code</button>
     </div>
-
-    <!-- <form id="otpSection" action="/auth/verify-otp" method="POST">
+    <form id="otpSection" action="/auth/verify-otp" method="POST">
         <input type="hidden" name="email" id="hiddenEmail">
         <p style="text-align:center; font-size:0.9rem; color:#94a3b8; margin-bottom:10px;">Enter the 6-digit code sent to your email.</p>
         <div class="input-group">
             <input type="text" name="otp" placeholder="123456" maxlength="6" style="text-align:center; letter-spacing: 5px; font-size: 1.2rem;" required>
         </div>
         <button type="submit" class="primary-btn">Verify & Launch</button>
-    </form> -->
-    <div id="emailStep">
-    <form id="sendOtpForm" onsubmit="handleSendOtp(event)">
-        <p style="text-align:center; font-size:0.9rem; color:#94a3b8; margin-bottom:10px;">
-            Sign in via Magic Link
-        </p>
-        <div class="input-group">
-            <input type="email" id="userEmailInput" name="email" placeholder="name@company.com" required>
-        </div>
-        <button type="submit" class="primary-btn">Send Login Code</button>
     </form>
-</div>
-
-<div id="otpStep" style="display: none;">
-    <form id="otpSection" action="/auth/verify-otp" method="POST">
-        
-        <input type="hidden" name="email" id="hiddenEmail">
-        
-        <p style="text-align:center; font-size:0.9rem; color:#94a3b8; margin-bottom:10px;">
-            Enter the 6-digit code sent to your email.
-        </p>
-        <div class="input-group">
-            <input type="text" name="otp" placeholder="123456" maxlength="6" 
-                   style="text-align:center; letter-spacing: 5px; font-size: 1.2rem;" required>
-        </div>
-        <button type="submit" class="primary-btn">Verify & Launch</button>
-    </form>
-    
-    <p style="text-align:center; margin-top:10px; font-size:0.8rem; cursor:pointer; color:#64748b;" onclick="showEmailStep()">
-        Wrong email? Go back
-    </p>
-</div>
 </div>
 
 <script>
@@ -140,65 +108,5 @@
         }
     }
 </script>
-<!-- latest for render only -->
-<script>
-    async function handleSendOtp(event) {
-        event.preventDefault(); // Stop page reload
-        
-        const emailInput = document.getElementById('userEmailInput').value;
-        const sendBtn = event.target.querySelector('button');
-        
-        // 1. Validate Email
-        if (!emailInput) {
-            alert("Please enter a valid email.");
-            return;
-        }
-
-        // 2. Change Button Text to Loading...
-        const originalText = sendBtn.innerText;
-        sendBtn.innerText = "Sending...";
-        sendBtn.disabled = true;
-
-        try {
-            // 3. Send request to backend
-            const formData = new FormData();
-            formData.append('email', emailInput);
-
-            const response = await fetch('/auth/send-otp', {
-                method: 'POST',
-                body: formData
-            });
-            
-            const result = await response.json();
-
-            if (result.status === "success") {
-                // ✅ CRITICAL: Copy email to the hidden field in the OTP form
-                document.getElementById('hiddenEmail').value = emailInput;
-
-                // 4. Switch Views
-                document.getElementById('emailStep').style.display = 'none';
-                document.getElementById('otpStep').style.display = 'block';
-                
-                alert("OTP Sent! Check your inbox (and spam folder).");
-            } else {
-                alert("Error: " + result.message);
-                sendBtn.innerText = originalText;
-                sendBtn.disabled = false;
-            }
-        } catch (error) {
-            console.error("Error:", error);
-            alert("Failed to connect to server.");
-            sendBtn.innerText = originalText;
-            sendBtn.disabled = false;
-        }
-    }
-
-    // Helper to go back
-    function showEmailStep() {
-        document.getElementById('otpStep').style.display = 'none';
-        document.getElementById('emailStep').style.display = 'block';
-    }
-</script>
-
 </body>
 </html>
