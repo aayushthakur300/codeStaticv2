@@ -1,4 +1,3 @@
-# 4th version
 import sys
 import traceback
 import os
@@ -17,8 +16,10 @@ from email.mime.multipart import MIMEMultipart
 from pathlib import Path
 from typing import List, Optional, Any
 
+# Third-party imports
 from dotenv import load_dotenv
 import google.generativeai as genai
+from fpdf import FPDF, XPos, YPos
 
 # FastAPI & Core Utilities
 from fastapi import FastAPI, Request, HTTPException, Depends, Form, BackgroundTasks, status
@@ -28,109 +29,53 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from starlette.middleware.sessions import SessionMiddleware
 from pydantic import BaseModel
-from fpdf import FPDF, XPos, YPos
 
 # Security & Auth Libraries
 from fastapi_sso.sso.google import GoogleSSO
 from fastapi_sso.sso.microsoft import MicrosoftSSO
 from fastapi_mail import FastMail, MessageSchema, ConnectionConfig, MessageType
 
-#latest added
-
-# --- 💀 SILENT KILLER DETECTION: GLOBAL CRASH HANDLER ---
+# --- 💀 GLOBAL CRASH HANDLER (RENDER SAFE) ---
 def crash_handler(exctype, value, tb):
     print("\n\n" + "="*60)
     print("💀 FATAL ERROR: SYSTEM CRASHED!")
     print("="*60)
     traceback.print_exception(exctype, value, tb)
     print("="*60)
-    input("Press ENTER to exit...")
+    # NOTE: input() is removed because it freezes Cloud Servers
 
 sys.excepthook = crash_handler
 print("🚀 [SYSTEM] Initializing CodeStatic AI SaaS Backend...")
-# ----------------------------------
 
-# 1. LOAD ENVIRONMENT VARIABLES
+# ----------------------------------
+# 1. LOAD CONFIGURATION
+# ----------------------------------
 load_dotenv()
 print("✅ [CHECKPOINT] Environment Variables Loaded")
 
-# 2. SETUP FASTAPI APP
-app = FastAPI(title="CodeStatic AI (Enterprise SaaS)")
+# --- DATABASE CONFIG (AIVEN / CLOUD READY) ---
+# Ensure these match your Render Environment Variables exactly
+DB_HOST = os.getenv("MYSQL_HOST")
+DB_USER = os.getenv("MYSQL_USER")
+DB_PASSWORD = os.getenv("MYSQL_PASSWORD")
+DB_NAME = os.getenv("MYSQL_DB", "defaultdb")
+DB_PORT = int(os.getenv("DB_PORT", 3306)) # Aiven usually uses a different port like 12345
 
-# --- PASTE THIS INTO RUN.PY (REPLACING THE OLD STARTUP FUNCTION) ---
-
-
-# --- REPLACE YOUR STARTUP EVENT IN RUN.PY ---
-@app.get("/healthz")
-def health_check():
-    return {"status": "ok"}
-
-# SECURITY: Session Middleware (Crucial for Login)
-# In production, SESSION_SECRET should be a complex random string in .env
-# UPDATE IN RUN.PY
-from starlette.middleware.sessions import SessionMiddleware
-
-app.add_middleware(
-    SessionMiddleware, 
-    secret_key=os.getenv("SESSION_SECRET", "dev-secret-key-change-me-in-prod"),
-    https_only=True,       # Keep False for Localhost, change to True for Render
-    max_age=30*24*60*60,    # 30 Days (in seconds) -> "Remember Me"
-    same_site="lax"         # Helps cookies stick better on localhost
-)
-
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
-
-BASE_DIR = Path(__file__).resolve().parent
-templates = Jinja2Templates(directory=str(BASE_DIR / "templates"))
-app.mount("/static", StaticFiles(directory=str(BASE_DIR / "templates")), name="static")
-
-# --- IMPORT: DETERMINISTIC ENGINE ---
-try:
-    from analysis_engine import analyzer
-    print("✅ [CHECKPOINT] Analysis Engine Loaded Successfully")
-except ImportError:
-    print("❌ [CRITICAL] analysis_engine.py not found! AI Fallback only.")
-    # Fallback to prevent crash if engine is missing
-    class MockAnalyzer:
-        def analyze(self, c, l): return {"quality_score": 0, "error_table": [], "complexity": {}}
-    analyzer = MockAnalyzer()
-
-# --------------------------------------------------------------------
-# 🔹 CONFIGURATION (DB, EMAIL, AI)
-# --------------------------------------------------------------------
-
-# Database Config
-# DB_HOST = os.getenv("MYSQL_HOST", "localhost")
-DB_HOST = os.getenv("MYSQL_HOST", "MYSQL_HOST")
-DB_USER = os.getenv("MYSQL_USER", "root")
-DB_PASSWORD = os.getenv("MYSQL_PASSWORD", "")
-DB_NAME = os.getenv("MYSQL_DB", "codestatic_db")
-DB_PORT = int(os.getenv("DB_PORT", 3306)) # Added Port Support
-
-#------------------------------------------------------------------------------------
-# Email Config (SMTP)
+# --- EMAIL CONFIG (SSL MODE FOR RENDER) ---
+# CRITICAL: We use Port 465 (SSL) instead of 587 (TLS) to avoid timeouts on Render
 mail_conf = ConnectionConfig(
-    MAIL_USERNAME=os.getenv("MAIL_USERNAME", "your-email@gmail.com"),
-    MAIL_PASSWORD=os.getenv("MAIL_PASSWORD", ""),
-    # MAIL_FROM=os.getenv("MAIL_USERNAME", "admin@localhost"),
-    # Change "admin@localhost" to something with a domain
-    MAIL_FROM=os.getenv("MAIL_FROM", "admin@codestatic.ai"),
-    MAIL_PORT=587,
+    MAIL_USERNAME=os.getenv("MAIL_USERNAME"),
+    MAIL_PASSWORD=os.getenv("MAIL_PASSWORD"), # MUST be a Google App Password
+    MAIL_FROM=os.getenv("MAIL_FROM", os.getenv("MAIL_USERNAME")),
+    MAIL_PORT=465,        # SSL Port
     MAIL_SERVER="smtp.gmail.com",
-    MAIL_STARTTLS=True,
-    MAIL_SSL_TLS=False,
+    MAIL_STARTTLS=False,  # Turn OFF TLS for Port 465
+    MAIL_SSL_TLS=True,    # Turn ON SSL for Port 465
     USE_CREDENTIALS=True,
     VALIDATE_CERTS=True
 )
 
-#-------------------------------------------------------------------------------
-# AI Config
+# --- AI CONFIG ---
 api_key = os.getenv("GEMINI_API_KEY")
 if api_key:
     genai.configure(api_key=api_key)
@@ -209,26 +154,72 @@ MODEL_ROSTER = [
     'models/aqa'
 ]
 
-# OAuth Config (Optional)
+# --- OAUTH CONFIG ---
+# Ensure "Authorized redirect URIs" in Google Console matches your Render URL
+# e.g., https://your-app-name.onrender.com/auth/google/callback
 google_sso = GoogleSSO(
-    client_id=os.getenv("GOOGLE_CLIENT_ID", ""),
-    client_secret=os.getenv("GOOGLE_CLIENT_SECRET", ""),
-     redirect_uri="http://localhost:10000/auth/google/callback"
-    #redirect_uri= "https://codestaticv2.onrender.com/auth/google/callback"
+    client_id=os.getenv("GOOGLE_CLIENT_ID"),
+    client_secret=os.getenv("GOOGLE_CLIENT_SECRET"),
+    redirect_uri=os.getenv("GOOGLE_REDIRECT_URI"),
+    allow_insecure_http=True 
 )
 
 microsoft_sso = MicrosoftSSO(
-    client_id=os.getenv("MS_CLIENT_ID", ""),
-    client_secret=os.getenv("MS_CLIENT_SECRET", ""),
-    redirect_uri="http://localhost:10000/auth/microsoft/callback"
-    #redirect_uri= "https://codestaticv2.onrender.com/auth/microsoft/callback"
+    client_id=os.getenv("MS_CLIENT_ID"),
+    client_secret=os.getenv("MS_CLIENT_SECRET"),
+    redirect_uri=os.getenv("MS_REDIRECT_URI"),
+    allow_insecure_http=True
 )
-# --------------------------------------------------------------------
-# 🔹 DATABASE HELPERS
-# --------------------------------------------------------------------
+
+# ----------------------------------
+# 2. SETUP FASTAPI APP
+# ----------------------------------
+app = FastAPI(title="CodeStatic AI (Enterprise SaaS)")
+
+# Middleware
+app.add_middleware(
+    SessionMiddleware, 
+    secret_key=os.getenv("SESSION_SECRET", "super-secret-key-change-me"),
+    https_only=False, # Render handles SSL termination
+    max_age=30*24*60*60,
+    same_site="lax"
+)
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+# Static Files
+BASE_DIR = Path(__file__).resolve().parent
+templates = Jinja2Templates(directory=str(BASE_DIR / "templates"))
+app.mount("/static", StaticFiles(directory=str(BASE_DIR / "templates")), name="static")
+
+# Mock Analysis Engine if missing
+try:
+    from analysis_engine import analyzer
+    print("✅ [CHECKPOINT] Analysis Engine Loaded Successfully")
+except ImportError:
+    print("⚠️ [WARNING] analysis_engine.py not found! Using Mock Fallback.")
+    class MockAnalyzer:
+        def analyze(self, c, l): return {"quality_score": 0, "error_table": [], "complexity": {}}
+    analyzer = MockAnalyzer()
+
+# ----------------------------------
+# 3. DATABASE HELPERS (AIVEN SSL FIX)
+# ----------------------------------
 def get_connection():
-    """Creates a fresh connection to MySQL"""
+    """Creates a fresh connection to MySQL with SSL for Aiven Support"""
     try:
+        # Create a permissive SSL context 
+        # (Required for Cloud DBs to accept the connection)
+        ssl_ctx = ssl.create_default_context()
+        ssl_ctx.check_hostname = False
+        ssl_ctx.verify_mode = ssl.CERT_NONE
+
         return pymysql.connect(
             host=DB_HOST,
             user=DB_USER,
@@ -236,12 +227,14 @@ def get_connection():
             database=DB_NAME,
             port=DB_PORT,
             charset='utf8mb4',
-            cursorclass=pymysql.cursors.DictCursor
+            cursorclass=pymysql.cursors.DictCursor,
+            connect_timeout=20,    # Increased timeout for cloud latency
+            ssl=ssl_ctx            # Inject SSL Context
         )
-    except pymysql.MySQLError as e:
-        print(f"\n💀 [FATAL] Local Database Connection Failed!")
+    except Exception as e:
+        print(f"\n💀 [FATAL] Database Connection Failed!")
         print(f"   Error: {e}")
-        print(f"   Check: Is MySQL running? Is the password correct?")
+        print(f"   Target: {DB_HOST}:{DB_PORT}")
         raise e
 
 def init_db():
@@ -252,59 +245,19 @@ def init_db():
         print("✅ [INIT] Database Connected Successfully.")
     except Exception as e:
         print(f"❌ [INIT] Database Error: {e}")
-        # We don't exit here to allow debugging, but routes will fail
 
 init_db()
 
 def get_db():
-    """Dependency for routes"""
     conn = get_connection()
     try:
         yield conn
     finally:
         conn.close()
 
-# --------------------------------------------------------------------
-# 🔹 AUTHENTICATION UTILITIES (The Guard)
-# --------------------------------------------------------------------
-
-def get_current_user(request: Request):
-    """
-    SECURITY GATE: Ensures only logged-in users can access specific routes.
-    """
-    user = request.session.get("user")
-    if not user:
-        print(f"⛔ [AUTH BLOCK] Access denied to {request.url.path}")
-        raise HTTPException(status_code=401, detail="Not Authenticated. Please Login.")
-    return user
-
-async def send_otp_email(email: str, otp: str):
-    """Sends the magic code via real SMTP"""
-    print(f"📧 [EMAIL] Preparing to send OTP to {email}...")
-    try:
-        message = MessageSchema(
-            subject="LogicProbe Verification Code",
-            recipients=[email],
-            body=f"""
-            Your Secure Login Code is: {otp}
-            
-            This code expires in 10 minutes.
-            If you did not request this, please ignore this email.
-            """,
-            subtype=MessageType.plain
-        )
-        fm = FastMail(mail_conf)
-        await fm.send_message(message)
-        print(f"✅ [EMAIL] OTP sent successfully to {email}")
-    except Exception as e:
-        print("=====================================================")
-        print("💀 EMAIL FATAL ERROR DETAILS:")
-        print(traceback.format_exc())  # <--- THIS IS THE MAGIC LINE
-        print("=====================================================")
-    # Keep your existing return statement if you have one
-# --------------------------------------------------------------------
-# 🔹 PYDANTIC MODELS
-# --------------------------------------------------------------------
+# ----------------------------------
+# 4. PYDANTIC MODELS
+# ----------------------------------
 class CodeData(BaseModel):
     code: str
     language: str
@@ -328,6 +281,7 @@ class ChatData(BaseModel):
 class FeedbackData(BaseModel):
     message: str
     rating: int
+    name: Optional[str] = "Anonymous"
 
 class ProcessCodeData(BaseModel):
     code: str
@@ -350,9 +304,9 @@ class ReportData(BaseModel):
     class Config:
         extra = "allow"
 
-# --------------------------------------------------------------------
-# 🔹 PDF GENERATOR CLASS
-# --------------------------------------------------------------------
+# ----------------------------------
+# 5. PDF GENERATOR
+# ----------------------------------
 class CodeReportPDF(FPDF):
     def header(self):
         self.set_font('Helvetica', 'B', 16)
@@ -396,9 +350,72 @@ class CodeReportPDF(FPDF):
     def sanitize_text(self, text):
         return text.encode('latin-1', 'replace').decode('latin-1')
 
-# --------------------------------------------------------------------
-# 🔹 PUBLIC ROUTES (Landing & Auth)
-# --------------------------------------------------------------------
+# ----------------------------------
+# 6. AUTH & EMAIL LOGIC (CRITICAL FIXES)
+# ----------------------------------
+
+def get_current_user(request: Request):
+    user = request.session.get("user")
+    if not user:
+        raise HTTPException(status_code=401, detail="Not Authenticated")
+    return user
+
+async def send_otp_email(email: str, otp: str):
+    """Sends OTP using SSL (Port 465)"""
+    print(f"📧 [EMAIL] Sending OTP to {email}...")
+    try:
+        message = MessageSchema(
+            subject="CodeStatic Verification Code",
+            recipients=[email],
+            body=f"""
+            Your Login Code is: {otp}
+            
+            This code expires in 10 minutes.
+            """,
+            subtype=MessageType.plain
+        )
+        fm = FastMail(mail_conf)
+        await fm.send_message(message)
+        print(f"✅ [EMAIL] OTP sent to {email}")
+    except Exception as e:
+        print(f"💀 [EMAIL ERROR]: {e}")
+        # Traceback helps debug connection issues
+        traceback.print_exc()
+
+async def send_admin_feedback(user_email: str, rating: int, feedback_msg: str):
+    """Sends Feedback to Admin (YOU)"""
+    admin_email = os.getenv("MAIL_USERNAME") 
+    print(f"📧 [EMAIL] Sending Feedback to Admin ({admin_email})...")
+    
+    html_body = f"""
+    <h3>🚀 New User Feedback</h3>
+    <p><strong>User:</strong> {user_email}</p>
+    <p><strong>Rating:</strong> {rating} / 5</p>
+    <hr>
+    <p><strong>Message:</strong></p>
+    <blockquote>{feedback_msg}</blockquote>
+    """
+    
+    try:
+        message = MessageSchema(
+            subject=f"📢 Feedback from {user_email}",
+            recipients=[admin_email],
+            body=html_body,
+            subtype=MessageType.html
+        )
+        fm = FastMail(mail_conf)
+        await fm.send_message(message)
+        print("✅ [EMAIL] Admin notified of feedback.")
+    except Exception as e:
+        print(f"💀 [EMAIL ERROR]: {e}")
+
+# ----------------------------------
+# 7. ROUTES
+# ----------------------------------
+
+@app.get("/healthz")
+def health_check():
+    return {"status": "ok"}
 
 @app.get("/", response_class=HTMLResponse)
 async def landing_page(request: Request):
@@ -410,58 +427,21 @@ async def login_page(request: Request):
 
 @app.get("/logicprobe", response_class=HTMLResponse)
 async def logic_probe(request: Request):
-    # SECURE: Require Session
     user = request.session.get("user")
     if not user:
         return RedirectResponse(url="/login", status_code=303)
     return templates.TemplateResponse("tool.html", {"request": request, "user": user})
 
-# --------------------------------------------------------------------
-# 🔹 AUTHENTICATION ENDPOINTS (OTP & OAUTH)
-# --------------------------------------------------------------------
+# --- AUTH ROUTES ---
 
-async def send_feedback_notification(user_email: str, rating: int, feedback_msg: str):
-    """
-    Sends an email to the Admin (You) when a user submits feedback.
-    """
-    admin_email = os.getenv("MAIL_USERNAME") # You receive the email
-    
-    print(f"📧 [EMAIL] Forwarding user feedback to Admin ({admin_email})...")
-    
-    html_body = f"""
-    <h3>🚀 New Feedback Received</h3>
-    <p><strong>User:</strong> {user_email}</p>
-    <p><strong>Rating:</strong> {rating} / 5 Stars</p>
-    <hr>
-    <p><strong>Message:</strong></p>
-    <blockquote style="background: #f9f9f9; padding: 10px; border-left: 5px solid #ef4444;">
-        {feedback_msg}
-    </blockquote>
-    """
-    
-    try:
-        message = MessageSchema(
-            subject=f"📢 New Feedback from {user_email}",
-            recipients=[admin_email],  # Sending to YOU
-            body=html_body,
-            subtype=MessageType.html
-        )
-        fm = FastMail(mail_conf)
-        await fm.send_message(message)
-        print("✅ [EMAIL] Feedback notification sent to Admin.")
-    except Exception as e:
-        print(f"💀 [EMAIL ERROR] Failed to notify admin: {e}")
-        
 @app.post("/auth/send-otp")
 async def send_otp(background_tasks: BackgroundTasks, email: str = Form(...)):
-    # 1. Generate Logic
     otp = ''.join(random.choices(string.digits, k=6))
     expiry = datetime.datetime.now() + datetime.timedelta(minutes=10)
     
     conn = get_connection()
     try:
         with conn.cursor() as cur:
-            # 2. Save to DB (Upsert)
             cur.execute("""
                 INSERT INTO users (email, provider, otp_code, otp_expiry) 
                 VALUES (%s, 'email', %s, %s)
@@ -470,11 +450,12 @@ async def send_otp(background_tasks: BackgroundTasks, email: str = Form(...)):
         conn.commit()
     except Exception as e:
         print(f"💀 [DB ERROR] OTP Write Failed: {e}")
-        raise HTTPException(status_code=500, detail="Database Error")
+        # We don't crash here, so we can try to send email anyway or return error
+        return JSONResponse({"status": "error", "message": "Database Error"}, status_code=500)
     finally:
         conn.close()
 
-    # 3. Send Email (Background)
+    # Trigger Email in Background
     background_tasks.add_task(send_otp_email, email, otp)
     
     return {"status": "success", "message": "OTP Sent"}
@@ -485,45 +466,37 @@ async def verify_otp(request: Request, email: str = Form(...), otp: str = Form(.
     user_valid = False
     try:
         with conn.cursor() as cur:
-            # 1. Check DB
             cur.execute("SELECT * FROM users WHERE email=%s AND otp_code=%s", (email, otp))
             user = cur.fetchone()
             
             if user:
-                # 2. Check Expiry
+                # Basic expiry check
                 if user['otp_expiry'] and user['otp_expiry'] > datetime.datetime.now():
                     user_valid = True
-                    # 3. Cleanup
                     cur.execute("UPDATE users SET otp_code=NULL, is_verified=1 WHERE email=%s", (email,))
                     conn.commit()
     finally:
         conn.close()
 
     if user_valid:
-        # 4. Create Session
         request.session["user"] = {"email": email, "provider": "email"}
-        print(f"✅ [AUTH] User {email} logged in successfully.")
         return RedirectResponse(url="/logicprobe", status_code=303)
     else:
-        print(f"⛔ [AUTH] Invalid Login Attempt for {email}")
-        return RedirectResponse(url="/login?error=Invalid+or+Expired+OTP", status_code=303)
+        return RedirectResponse(url="/login?error=Invalid+OTP", status_code=303)
 
-# --- SOCIAL OAUTH (FIXED: CONTEXT MANAGER) ---
+# --- SOCIAL AUTH ---
 
 @app.get("/auth/google/login")
 async def google_login():
-    """Redirect to Google Login Page"""
-    with google_sso:  # SECURITY FIX: Use Context Manager
+    with google_sso:
         return await google_sso.get_login_redirect()
 
 @app.get("/auth/google/callback")
 async def google_callback(request: Request):
-    """Process Google Login Response"""
     try:
-        with google_sso:  # SECURITY FIX: Use Context Manager
+        with google_sso:
             user = await google_sso.verify_and_process(request)
         
-        # Save User to DB
         conn = get_connection()
         try:
             with conn.cursor() as cur:
@@ -535,141 +508,178 @@ async def google_callback(request: Request):
         finally:
             conn.close()
 
-        # Set Session
         request.session["user"] = {
             "email": user.email, 
             "provider": "google", 
             "name": user.display_name
         }
         return RedirectResponse(url="/logicprobe")
-    
     except Exception as e:
         print(f"💀 Google Auth Error: {e}")
         return RedirectResponse(url="/login?error=Google+Auth+Failed")
+
+@app.get("/auth/microsoft/login")
+async def microsoft_login():
+    with microsoft_sso:
+        return await microsoft_sso.get_login_redirect()
+
+@app.get("/auth/microsoft/callback")
+async def microsoft_callback(request: Request):
+    try:
+        with microsoft_sso:
+            user = await microsoft_sso.verify_and_process(request)
+        
+        conn = get_connection()
+        try:
+            with conn.cursor() as cur:
+                cur.execute("""
+                    INSERT IGNORE INTO users (email, provider, full_name, is_verified) 
+                    VALUES (%s, 'microsoft', %s, 1)
+                """, (user.email, user.display_name))
+            conn.commit()
+        finally:
+            conn.close()
+
+        request.session["user"] = {
+            "email": user.email, 
+            "provider": "microsoft", 
+            "name": user.display_name
+        }
+        return RedirectResponse(url="/logicprobe")
+    except Exception as e:
+        return RedirectResponse(url="/login?error=MS+Auth+Failed")
 
 @app.get("/logout")
 async def logout(request: Request):
     request.session.clear()
     return RedirectResponse(url="/")
 
-# --------------------------------------------------------------------
-# 🔹 USER DATA API (ISOLATED PER USER)
-# --------------------------------------------------------------------
+# --- FEATURES ---
 
 @app.post("/submit-feedback")
 async def submit_feedback(
-    data: FeedbackData, 
-    background_tasks: BackgroundTasks,  # <--- INJECTED HERE
-    user=Depends(get_current_user), 
-    db=Depends(get_db)
+    request: Request,
+    background_tasks: BackgroundTasks
 ):
+    user = request.session.get("user")
+    data = await request.json()
+    email = user["email"] if user else "Anonymous"
+    message = data.get("message")
+    rating = data.get("rating")
+    
+    conn = get_connection()
     try:
-        # 1. Save to Database (Existing Logic)
-        cur = db.cursor()
-        cur.execute("INSERT INTO feedbacks (user_email, message, rating) VALUES (%s, %s, %s)", 
-                   (user['email'], data.message, data.rating))
-        db.commit()
-        
-        # 2. Trigger Email to Admin (New Logic)
-        # We use background_tasks so the user interface doesn't freeze while sending email.
-        background_tasks.add_task(
-            send_feedback_notification, 
-            user['email'], 
-            data.rating, 
-            data.message
-        )
-
-        return {"status": "success"}
+        with conn.cursor() as cur:
+            cur.execute("""
+                INSERT INTO feedbacks (user_email, name, message, rating) 
+                VALUES (%s, 'Anonymous', %s, %s)
+            """, (email, message, rating))
+        conn.commit()
     except Exception as e:
-        print(f"Feedback Error: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        return JSONResponse({"status": "error", "message": str(e)}, status_code=500)
+    finally:
+        conn.close()
+
+    # TRIGGER EMAIL TO ADMIN
+    background_tasks.add_task(send_admin_feedback, email, rating, message)
+
+    return {"status": "success"}
 
 @app.post("/save-code")
-def save_code(data: CodeData, user=Depends(get_current_user), db=Depends(get_db)):
+def save_code(data: CodeData, user=Depends(get_current_user)):
+    conn = get_connection()
     try:
-        cur = db.cursor()
-        # SECURE: Save with user_email
-        cur.execute("INSERT INTO code_history (code, language, user_email) VALUES (%s, %s, %s)", 
-                   (data.code, data.language, user['email']))
-        db.commit()
-        return {"status": "success", "id": cur.lastrowid}
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        with conn.cursor() as cur:
+            cur.execute("""
+                CREATE TABLE IF NOT EXISTS code_history (
+                    id INT AUTO_INCREMENT PRIMARY KEY,
+                    user_email VARCHAR(255),
+                    code TEXT,
+                    language VARCHAR(50),
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                )
+            """)
+            cur.execute("INSERT INTO code_history (code, language, user_email) VALUES (%s, %s, %s)", 
+                        (data.code, data.language, user['email']))
+        conn.commit()
+        return {"status": "success"}
+    finally:
+        conn.close()
 
 @app.get("/load-last-code")
-def load_last_code(user=Depends(get_current_user), db=Depends(get_db)):
+def load_last_code(user=Depends(get_current_user)):
+    conn = get_connection()
     try:
-        cur = db.cursor()
-        # SECURE: Filter by user_email
-        cur.execute("SELECT * FROM code_history WHERE user_email = %s ORDER BY id DESC LIMIT 1", (user['email'],))
-        row = cur.fetchone()
-        if not row: return {"status": "success", "data": None}
-        if 'created_at' in row: row['created_at'] = str(row['created_at'])
-        return {"status": "success", "data": row}
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        with conn.cursor() as cur:
+            cur.execute("SELECT * FROM code_history WHERE user_email = %s ORDER BY id DESC LIMIT 1", (user['email'],))
+            row = cur.fetchone()
+            if row and 'created_at' in row: row['created_at'] = str(row['created_at'])
+            return {"status": "success", "data": row}
+    finally:
+        conn.close()
 
 @app.post("/save-project")
-def save_project(data: ProjectData, user=Depends(get_current_user), db=Depends(get_db)):
+def save_project(data: ProjectData, user=Depends(get_current_user)):
+    conn = get_connection()
     try:
-        cur = db.cursor()
-        cur.execute("INSERT INTO projects (project_name, code, language, user_email) VALUES (%s, %s, %s, %s)",
-                    (data.projectName, data.code, data.language, user['email']))
-        db.commit()
+        with conn.cursor() as cur:
+            cur.execute("INSERT INTO projects (user_email, name, code, language) VALUES (%s, %s, %s, %s)",
+                        (user['email'], data.projectName, data.code, data.language))
+        conn.commit()
         return {"status": "success"}
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        conn.close()
 
 @app.get("/projects")
-def get_projects(user=Depends(get_current_user), db=Depends(get_db)):
+def get_projects(user=Depends(get_current_user)):
+    conn = get_connection()
     try:
-        cur = db.cursor()
-        # SECURE: Filter by user_email
-        cur.execute("SELECT * FROM projects WHERE user_email = %s ORDER BY created_at DESC", (user['email'],))
-        rows = cur.fetchall()
-        for r in rows: 
-            if 'created_at' in r: r['created_at'] = str(r['created_at'])
-        return {"status": "success", "projects": rows}
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        with conn.cursor() as cur:
+            cur.execute("SELECT * FROM projects WHERE user_email = %s ORDER BY created_at DESC", (user['email'],))
+            rows = cur.fetchall()
+            for r in rows: 
+                if 'created_at' in r: r['created_at'] = str(r['created_at'])
+            return {"status": "success", "projects": rows}
+    finally:
+        conn.close()
 
 @app.post("/favorite-project")
-def favorite_project(data: FavoriteData, user=Depends(get_current_user), db=Depends(get_db)):
+def favorite_project(data: FavoriteData, user=Depends(get_current_user)):
+    conn = get_connection()
     try:
-        val = 1 if data.fav else 0
-        cur = db.cursor()
-        cur.execute("UPDATE projects SET is_favorite = %s WHERE id = %s AND user_email = %s", 
-                   (val, data.id, user['email']))
-        db.commit()
+        with conn.cursor() as cur:
+            cur.execute("UPDATE projects SET is_favorite = %s WHERE id = %s AND user_email = %s", 
+                        (1 if data.fav else 0, data.id, user['email']))
+        conn.commit()
         return {"status": "success"}
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        conn.close()
 
 @app.post("/delete-project")
-def delete_project(data: DeleteData, user=Depends(get_current_user), db=Depends(get_db)):
+def delete_project(data: DeleteData, user=Depends(get_current_user)):
+    conn = get_connection()
     try:
-        cur = db.cursor()
-        cur.execute("DELETE FROM projects WHERE id = %s AND user_email = %s", (data.id, user['email']))
-        db.commit()
+        with conn.cursor() as cur:
+            cur.execute("DELETE FROM projects WHERE id = %s AND user_email = %s", (data.id, user['email']))
+        conn.commit()
         return {"status": "success"}
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        conn.close()
 
 @app.get("/load-chat")
-def load_chat(user=Depends(get_current_user), db=Depends(get_db)):
+def load_chat(user=Depends(get_current_user)):
+    conn = get_connection()
     try:
-        cur = db.cursor()
-        # Filter by User
-        cur.execute("SELECT * FROM ai_chat WHERE user_email = %s ORDER BY id ASC", (user['email'],))
-        rows = cur.fetchall()
-        for r in rows:
-            if 'created_at' in r: r['created_at'] = str(r['created_at'])
-        return {"status": "success", "chat": rows}
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-# --------------------------------------------------------------------
-# 🔹 CORE ANALYSIS LOGIC (AI, Chat, Reports)
-# --------------------------------------------------------------------
+        with conn.cursor() as cur:
+            cur.execute("SELECT * FROM ai_chat WHERE user_email = %s ORDER BY id ASC", (user['email'],))
+            rows = cur.fetchall()
+            for r in rows:
+                if 'created_at' in r: r['created_at'] = str(r['created_at'])
+            return {"status": "success", "chat": rows}
+    except:
+        return {"status": "success", "chat": []}
+    finally:
+        conn.close()
 
 @app.post("/generate_pdf")
 def generate_pdf(data: ReportData):
@@ -683,81 +693,72 @@ def generate_pdf(data: ReportData):
         pdf.cell(0, 6, f"Date: {time.strftime('%Y-%m-%d')}", 0, new_x=XPos.LMARGIN, new_y=YPos.NEXT)
         pdf.ln(5)
         
-        pdf.chapter_title("2. Compliance & Integrity Status")
+        pdf.chapter_title("1. Compliance & Integrity Status")
         pdf.status_field("Quality Score:", str(data.quality_score) + " / 100")
         pdf.status_field("Compliance Status:", str(data.compliance_status))
-        pdf.status_field("Integrity Check:", str(data.integrity_check))
         pdf.status_field("Plagiarism Check:", str(data.plagiarism_check))
         pdf.ln(5)
 
-        pdf.chapter_title("3. Candidate Submission")
-        pdf.code_block(data.original_code if data.original_code else 'No code provided.')
-
-        pdf.chapter_title("4. Standardized & Fixed Code")
+        pdf.chapter_title("2. Fixed Code")
         pdf.code_block(data.final_code if data.final_code else 'Analysis failed.')
 
-        pdf.chapter_title("5. Critical Error Log")
-        pdf.code_block(data.error_log_text if data.error_log_text else 'No critical errors found.')
-        
-        pdf.chapter_title("6. Complexity Analysis")
-        pdf.code_block(data.time_analysis if data.time_analysis else 'N/A')
-        pdf.code_block(data.space_analysis if data.space_analysis else 'N/A')
-
-        pdf.chapter_title("7. Line-by-Line Explanation")
+        pdf.chapter_title("3. Explanation")
         pdf.code_block(data.explanation_text if data.explanation_text else 'No explanation.')
         
         pdf_bytes = pdf.output()
         pdf_buffer = io.BytesIO(pdf_bytes)
-        download_filename = f"CodeStatic_Report_{time.strftime('%Y%m%d%H%M%S')}.pdf"
+        filename = f"CodeStatic_Report_{time.strftime('%Y%m%d')}.pdf"
         
-        return Response(content=pdf_buffer.getvalue(), media_type="application/pdf", headers={"Content-Disposition": f"attachment; filename={download_filename}"})
+        return Response(content=pdf_buffer.getvalue(), media_type="application/pdf", headers={"Content-Disposition": f"attachment; filename={filename}"})
 
     except Exception as e:
         print(f"PDF Error: {e}")
         raise HTTPException(status_code=500, detail=f"PDF Generation Failed: {str(e)}")
 
 @app.post("/ai_chat")
-def ai_chat(data: ChatData, request: Request, db=Depends(get_db)):
-    # Optional Auth for Chat (or link to session if exists)
+def ai_chat(data: ChatData, request: Request):
     user_email = "anonymous"
     user = request.session.get("user")
     if user: user_email = user['email']
 
     try:
-        user_message = data.message
-        current_code = data.code_context
-        
-        if not user_message: raise HTTPException(status_code=400, detail="No message provided")
-
         prompt = f"""
         ACT AS: An Expert AI Coding Assistant.
-        CONTEXT CODE: ```{current_code}```
-        QUESTION: "{user_message}"
+        CONTEXT CODE: ```{data.code_context}```
+        QUESTION: "{data.message}"
         RESPONSE: Provide a direct, helpful Markdown answer.
         """
         
         ai_reply = "AI Services Busy."
-        success = False
         
         for model_name in MODEL_ROSTER:
             try:
                 current_model = genai.GenerativeModel(model_name)
                 response = current_model.generate_content(prompt)
                 ai_reply = response.text
-                success = True
                 break
-            except Exception as e:
-                print(f"⚠️ Model {model_name} failed: {e}")
+            except:
                 continue
         
-        if success:
+        # Save to DB
+        if user_email != "anonymous":
+            conn = get_connection()
             try:
-                cur = db.cursor()
-                cur.execute("INSERT INTO ai_chat (user_message, ai_response, user_email) VALUES (%s, %s, %s)", 
-                           (user_message, ai_reply, user_email))
-                db.commit()
-            except Exception as e:
-                print(f"Chat DB Error: {e}")
+                with conn.cursor() as cur:
+                    cur.execute("""
+                        CREATE TABLE IF NOT EXISTS ai_chat (
+                            id INT AUTO_INCREMENT PRIMARY KEY,
+                            user_email VARCHAR(255),
+                            user_message TEXT,
+                            ai_response TEXT,
+                            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                        )
+                    """)
+                    cur.execute("INSERT INTO ai_chat (user_message, ai_response, user_email) VALUES (%s, %s, %s)", 
+                                (data.message, ai_reply, user_email))
+                conn.commit()
+            finally:
+                conn.close()
 
         return {"status": "success", "reply": ai_reply}
 
@@ -766,8 +767,6 @@ def ai_chat(data: ChatData, request: Request, db=Depends(get_db)):
 
 @app.post("/process_code")
 def process_code(data: ProcessCodeData, request: Request):
-    # This endpoint is PUBLIC to allow CLI tools to work without complex session cookies
-    # However, if called from the Browser, we try to link it to the User for logs.
     user_email = "cli-bot"
     user = request.session.get("user")
     if user: user_email = user['email']
@@ -782,9 +781,10 @@ def process_code(data: ProcessCodeData, request: Request):
         lines = source_code.split('\n')
         numbered_code = "\n".join([f"{i+1} | {line}" for i, line in enumerate(lines)])
 
-        print("🔍 Running Deterministic Rules Engine...")
+        # Static Analysis (Mock or Real)
         static_result = analyzer.analyze(source_code, target_lang)
         
+        # --- THE FULL PROMPT (PRESERVED) ---
         prompt = f"""
         ACT AS: The "Supreme Code Architect" and Forensic Debugger.
         TASK: Perform a deep-scan code audit, ruthlessly identify ALL errors, and generate a 100% CORRECT, COMPILABLE solution in {target_lang}.
@@ -921,33 +921,41 @@ def process_code(data: ProcessCodeData, request: Request):
             try:
                 print(f"🤖 Attempting: {model_name}")
                 current_model = genai.GenerativeModel(model_name)
-                response = current_model.generate_content(prompt)
-                clean_text = response.text.replace('```json', '').replace('```', '').strip()
-                json_response = json.loads(clean_text)
+                # FORCE JSON
+                response = current_model.generate_content(prompt, generation_config={"response_mime_type": "application/json"})
+                final_response = json.loads(response.text)
                 
-                # MERGE LOGIC
-                ai_errors = json_response.get("error_table", [])
+                # MERGE STATIC ERRORS
+                ai_errors = final_response.get("error_table", [])
                 deterministic_errors = static_result.get("error_table", [])
-                json_response["error_table"] = deterministic_errors + ai_errors
+                final_response["error_table"] = deterministic_errors + ai_errors
                 
-                if len(deterministic_errors) > 0 and json_response.get("quality_score", 100) > 50:
-                    json_response["quality_score"] -= (len(deterministic_errors) * 10)
-                
-                json_response["quality_score"] = max(0, json_response.get("quality_score", 0))
-                final_response = json_response
                 ai_success = True
                 
-                # --- AUTO-SAVE TO MYSQL (With User Email if available) ---
+                # AUTO-SAVE REPORT TO DB
                 try:
                     conn = get_connection()
                     cur = conn.cursor()
+                    cur.execute("""
+                        CREATE TABLE IF NOT EXISTS analysis_reports (
+                            id INT AUTO_INCREMENT PRIMARY KEY,
+                            user_email VARCHAR(255),
+                            language VARCHAR(50),
+                            quality_score INT,
+                            critical_errors_count INT,
+                            original_code TEXT,
+                            fixed_code TEXT,
+                            full_json_report JSON,
+                            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                        )
+                    """)
                     cur.execute("""
                         INSERT INTO analysis_reports 
                         (language, quality_score, critical_errors_count, original_code, fixed_code, full_json_report, user_email)
                         VALUES (%s, %s, %s, %s, %s, %s, %s)
                     """, (
                         target_lang,
-                        final_response["quality_score"],
+                        final_response.get("quality_score", 0),
                         len(final_response["error_table"]),
                         source_code,
                         final_response.get("final_code", ""),
@@ -958,7 +966,6 @@ def process_code(data: ProcessCodeData, request: Request):
                     conn.close()
                 except Exception as db_err:
                     print(f"⚠️ DB Save Failed: {db_err}")
-                # --------------------------
                 
                 break
 
@@ -966,36 +973,19 @@ def process_code(data: ProcessCodeData, request: Request):
                 print(f"⚠️ Model {model_name} failed: {e}")
                 continue 
 
-        # 3. FALLBACK ENGINE
+        # FALLBACK
         if not ai_success:
             print("❌ AI FAILED. ENGAGING FALLBACK.")
             return {
                 "status": "success",
-                "quality_score": static_result["quality_score"],
-                "integrity_check": "⚠️ AI OFFLINE - RUNNING DETERMINISTIC",
+                "quality_score": static_result.get("quality_score", 0),
+                "integrity_check": "AI Unavailable",
                 "plagiarism_check": "Unavailable",
-                "error_table": static_result["error_table"],
+                "error_table": static_result.get("error_table", []),
                 "final_code": source_code,
-                "code_explanation": [{"line": 0, "code": "SYS", "explanation": "AI Unavailable."}],
-                "complexity": static_result["complexity"],
+                "explanation_text": "AI Services offline.",
                 "target_lang": target_lang
             }
-
-        # 4. CI/CD LOGGING (Sentinel)
-        if data.is_ci_build:
-            status_val = "PASS" if final_response["quality_score"] >= 70 else "BLOCK"
-            issues = f"{len(final_response.get('error_table', []))} Errors"
-            try:
-                conn = get_connection()
-                cur = conn.cursor()
-                cur.execute("""
-                    INSERT INTO ci_logs (project_name, status, score, detected_issues, user_email)
-                    VALUES (%s, %s, %s, %s, %s)
-                """, ("CI_Job", status_val, final_response["quality_score"], issues, user_email))
-                conn.commit()
-                conn.close()
-            except Exception as e:
-                print(f"⚠️ CI Log Failed: {e}")
 
         return final_response
 
@@ -1006,7 +996,4 @@ if __name__ == "__main__":
     import uvicorn
     print("✅ CHECKPOINT 4: Reached Main Block")
     print("⚡ CHECKPOINT 5: Starting Uvicorn Server on Port 10000...")
-    try:
-        uvicorn.run(app, host="0.0.0.0", port=10000)
-    except Exception as e:
-        print(f"💀 SERVER CRASHED: {e}")
+    uvicorn.run(app, host="0.0.0.0", port=10000)

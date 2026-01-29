@@ -36,45 +36,6 @@ from fastapi_sso.sso.microsoft import MicrosoftSSO
 from fastapi_mail import FastMail, MessageSchema, ConnectionConfig, MessageType
 
 #latest added
-def send_otp_email(email: str, otp: str):
-    print(f"📧 SENDING OTP TO: {email}")
-    
-    sender_email = os.getenv("MAIL_USERNAME", "codestatic.ai@gmail.com")
-    sender_password = os.getenv("MAIL_PASSWORD")
-    
-    # 1. Setup Message with UTF-8 support
-    message = MIMEMultipart()
-    message["From"] = sender_email
-    message["To"] = email
-    message["Subject"] = "Your Verification Code"
-    
-    body = f"""
-    <div style="font-family: Arial, sans-serif; padding: 20px;">
-        <h2>🔐 Login Verification</h2>
-        <p>Your OTP code is:</p>
-        <h1 style="color: #4CAF50; letter-spacing: 5px;">{otp}</h1>
-        <p>This code expires in 10 minutes.</p>
-    </div>
-    """
-    
-    # ✅ FIX: Explicitly set utf-8 encoding to prevent crashes with symbols
-    message.attach(MIMEText(body, "html", "utf-8"))
-    
-    try:
-        # 2. Connect via SSL (Port 465)
-        # timeout=30 prevents it from hanging forever
-        server = smtplib.SMTP_SSL("smtp.gmail.com", 465, timeout=30)
-        
-        server.login(sender_email, sender_password)
-        server.sendmail(sender_email, email, message.as_string())
-        server.quit()
-        print("✅ EMAIL SENT SUCCESSFULLY")
-        return True
-        
-    except Exception as e:
-        print(f"❌ EMAIL FAILED: {e}")
-        # We re-raise the error so the route knows it failed
-        raise e
 
 # --- 💀 SILENT KILLER DETECTION: GLOBAL CRASH HANDLER ---
 def crash_handler(exctype, value, tb):
@@ -100,83 +61,6 @@ app = FastAPI(title="CodeStatic AI (Enterprise SaaS)")
 
 
 # --- REPLACE YOUR STARTUP EVENT IN RUN.PY ---
-
-@app.on_event("startup")
-def fix_all_database_tables():
-    print("🔨 [MAINTENANCE] SYNCHRONIZING DATABASE TO SESSION...")
-    try:
-        conn = get_connection()
-        cursor = conn.cursor()
-        
-        # 1. USERS TABLE (Standard)
-        cursor.execute("""
-        CREATE TABLE IF NOT EXISTS users (
-            id INT AUTO_INCREMENT PRIMARY KEY,
-            full_name VARCHAR(255),
-            email VARCHAR(255) NOT NULL UNIQUE,
-            password VARCHAR(255),
-            otp_code VARCHAR(10),
-            otp_expiry DATETIME,
-            provider VARCHAR(50) DEFAULT 'email',
-            google_id VARCHAR(255),
-            profile_pic VARCHAR(500),
-            is_verified BOOLEAN DEFAULT FALSE,
-            is_active BOOLEAN DEFAULT TRUE,
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        );
-        """)
-
-        # 2. PROJECTS TABLE (Switching user_id -> user_email)
-        print("🔧 Re-building 'projects' table...")
-        cursor.execute("DROP TABLE IF EXISTS projects")
-        cursor.execute("""
-        CREATE TABLE projects (
-            id INT AUTO_INCREMENT PRIMARY KEY,
-            user_email VARCHAR(255),  -- ✅ MATCHES SESSION
-            name VARCHAR(255),
-            description TEXT,
-            code TEXT,
-            language VARCHAR(50) DEFAULT 'python',
-            is_favorite BOOLEAN DEFAULT FALSE,
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        );
-        """)
-
-        # 3. FEEDBACKS TABLE
-        print("🔧 Re-building 'feedbacks' table...")
-        cursor.execute("DROP TABLE IF EXISTS feedbacks")
-        cursor.execute("""
-        CREATE TABLE feedbacks (
-            id INT AUTO_INCREMENT PRIMARY KEY,
-            user_email VARCHAR(255),  -- ✅ MATCHES SESSION
-            name VARCHAR(255),
-            message TEXT,
-            rating INT,
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        );
-        """)
-
-        # 4. CHATS TABLE (Switching user_id -> user_email)
-        print("🔧 Re-building 'chats' table...")
-        cursor.execute("DROP TABLE IF EXISTS chats")
-        cursor.execute("""
-        CREATE TABLE chats (
-            id INT AUTO_INCREMENT PRIMARY KEY,
-            user_email VARCHAR(255),  -- ✅ MATCHES SESSION
-            user_message TEXT,
-            ai_response TEXT,
-            timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        );
-        """)
-
-        conn.commit()
-        conn.close()
-        print("✅ SUCCESS: Database is now 100% synced with Session data.")
-        
-    except Exception as e:
-        print(f"❌ DATABASE INIT ERROR: {e}")
-# -------------------------------------------------------------------
-
 @app.get("/healthz")
 def health_check():
     return {"status": "ok"}
@@ -223,47 +107,28 @@ except ImportError:
 
 # Database Config
 # DB_HOST = os.getenv("MYSQL_HOST", "localhost")
-DB_HOST = os.getenv("DB_HOST", "DB_HOST")
+DB_HOST = os.getenv("MYSQL_HOST", "MYSQL_HOST")
 DB_USER = os.getenv("MYSQL_USER", "root")
 DB_PASSWORD = os.getenv("MYSQL_PASSWORD", "")
 DB_NAME = os.getenv("MYSQL_DB", "codestatic_db")
-DB_PORT = int(os.getenv("DB_PORT", 25214)) # It will read 25390 from Render
+DB_PORT = int(os.getenv("DB_PORT", 3306)) # Added Port Support
 
 #------------------------------------------------------------------------------------
-# # Email Config (SMTP)
-# mail_conf = ConnectionConfig(
-#     MAIL_USERNAME=os.getenv("MAIL_USERNAME", "your-email@gmail.com"),
-#     MAIL_PASSWORD=os.getenv("MAIL_PASSWORD", ""),
-#     # MAIL_FROM=os.getenv("MAIL_USERNAME", "admin@localhost"),
-#     # Change "admin@localhost" to something with a domain
-#     MAIL_FROM=os.getenv("MAIL_FROM", "admin@codestatic.ai"),
-#     MAIL_PORT=587,
-#     MAIL_SERVER="smtp.gmail.com",
-#     MAIL_STARTTLS=True,
-#     MAIL_SSL_TLS=False,
-#     USE_CREDENTIALS=True,
-#     VALIDATE_CERTS=True
-# )
-# ✅ CORRECT CONFIGURATION (Matches your working Test Script)
+# Email Config (SMTP)
 mail_conf = ConnectionConfig(
-    MAIL_USERNAME=os.getenv("MAIL_USERNAME","codestatic.ai@gmail.com"),
-    MAIL_PASSWORD=os.getenv("MAIL_PASSWORD",""),
-    
-    # ⚠️ CRITICAL: Gmail blocks emails if "From" doesn't match "Username"
-    # We force it to match your login email to prevent "Silent Death"
-    MAIL_FROM=os.getenv("MAIL_USERNAME","codestatic.ai@gmail.com"), 
-    
-    # ✅ USE PORT 465 (SSL) - This is what worked in your test
+    MAIL_USERNAME=os.getenv("MAIL_USERNAME", "your-email@gmail.com"),
+    MAIL_PASSWORD=os.getenv("MAIL_PASSWORD", ""),
+    # MAIL_FROM=os.getenv("MAIL_USERNAME", "admin@localhost"),
+    # Change "admin@localhost" to something with a domain
+    MAIL_FROM=os.getenv("MAIL_FROM", "admin@codestatic.ai"),
     MAIL_PORT=587,
     MAIL_SERVER="smtp.gmail.com",
-    
-    # ✅ SSL SETTINGS (Must match Port 465)
     MAIL_STARTTLS=True,
     MAIL_SSL_TLS=False,
-    
     USE_CREDENTIALS=True,
-    VALIDATE_CERTS=False
+    VALIDATE_CERTS=True
 )
+
 #-------------------------------------------------------------------------------
 # AI Config
 api_key = os.getenv("GEMINI_API_KEY")
@@ -348,47 +213,35 @@ MODEL_ROSTER = [
 google_sso = GoogleSSO(
     client_id=os.getenv("GOOGLE_CLIENT_ID", ""),
     client_secret=os.getenv("GOOGLE_CLIENT_SECRET", ""),
-    # redirect_uri="http://localhost:10000/auth/google/callback"
-    redirect_uri= "https://codestaticv2.onrender.com/auth/google/callback"
+     redirect_uri="http://localhost:10000/auth/google/callback"
+    #redirect_uri= "https://codestaticv2.onrender.com/auth/google/callback"
 )
 
 microsoft_sso = MicrosoftSSO(
     client_id=os.getenv("MS_CLIENT_ID", ""),
     client_secret=os.getenv("MS_CLIENT_SECRET", ""),
-    #redirect_uri="http://localhost:10000/auth/microsoft/callback"
-    redirect_uri= "https://codestaticv2.onrender.com/auth/microsoft/callback"
+    redirect_uri="http://localhost:10000/auth/microsoft/callback"
+    #redirect_uri= "https://codestaticv2.onrender.com/auth/microsoft/callback"
 )
 # --------------------------------------------------------------------
 # 🔹 DATABASE HELPERS
 # --------------------------------------------------------------------
 def get_connection():
-    # Define the path where Render mounts the Secret File
-    ca_path = "/etc/secrets/ca.pem"
-
-    # Check if the file actually exists (Safety Check)
-    ssl_config = None
-    if os.path.exists(ca_path):
-        print(f"🔒 SSL: Found CA Certificate at {ca_path}")
-        ssl_config = {'ca': ca_path}
-    else:
-        print("⚠️ SSL: CA Certificate NOT found! Connection might fail.")
-    print("--------------------------------------------------")
-    print(f"🔍 DEBUG DATABASE: Trying to connect to host: '{DB_HOST}'")
-    print("--------------------------------------------------")
     """Creates a fresh connection to MySQL"""
     try:
         return pymysql.connect(
-            host=os.getenv("DB_HOST"),
-            user=os.getenv("DB_USER"),
-            password=os.getenv("DB_PASSWORD"),
-            database=os.getenv("DB_NAME", "defaultdb"),
+            host=DB_HOST,
+            user=DB_USER,
+            password=DB_PASSWORD,
+            database=DB_NAME,
+            port=DB_PORT,
             charset='utf8mb4',
-            port=int(os.getenv("DB_PORT", 25214)),
-            ssl=ssl_config,
             cursorclass=pymysql.cursors.DictCursor
         )
-    except Exception as e:
-        print(f"💀 [FATAL] Database Connection Failed: {e}")
+    except pymysql.MySQLError as e:
+        print(f"\n💀 [FATAL] Local Database Connection Failed!")
+        print(f"   Error: {e}")
+        print(f"   Check: Is MySQL running? Is the password correct?")
         raise e
 
 def init_db():
@@ -600,33 +453,7 @@ async def send_feedback_notification(user_email: str, rating: int, feedback_msg:
         print(f"💀 [EMAIL ERROR] Failed to notify admin: {e}")
         
 @app.post("/auth/send-otp")
-# async def send_otp(background_tasks: BackgroundTasks, email: str = Form(...)):
-#     # 1. Generate Logic
-#     otp = ''.join(random.choices(string.digits, k=6))
-#     expiry = datetime.datetime.now() + datetime.timedelta(minutes=10)
-    
-#     conn = get_connection()
-#     try:
-#         with conn.cursor() as cur:
-#             # 2. Save to DB (Upsert)
-#             cur.execute("""
-#                 INSERT INTO users (email, provider, otp_code, otp_expiry) 
-#                 VALUES (%s, 'email', %s, %s)
-#                 ON DUPLICATE KEY UPDATE otp_code=%s, otp_expiry=%s
-#             """, (email, otp, expiry, otp, expiry))
-#         conn.commit()
-#     except Exception as e:
-#         print(f"💀 [DB ERROR] OTP Write Failed: {e}")
-#         raise HTTPException(status_code=500, detail="Database Error")
-#     finally:
-#         conn.close()
-
-#     # 3. Send Email (Background)
-#     background_tasks.add_task(send_otp_email, email, otp)
-    
-#     return {"status": "success", "message": "OTP Sent"}
-@app.post("/auth/send-otp")
-async def send_otp(email: str = Form(...)):  # Removed BackgroundTasks
+async def send_otp(background_tasks: BackgroundTasks, email: str = Form(...)):
     # 1. Generate Logic
     otp = ''.join(random.choices(string.digits, k=6))
     expiry = datetime.datetime.now() + datetime.timedelta(minutes=10)
@@ -647,15 +474,8 @@ async def send_otp(email: str = Form(...)):  # Removed BackgroundTasks
     finally:
         conn.close()
 
-    # 3. Send Email (DIRECTLY - No Background Task)
-    # This calls the new sync function we just wrote using smtplib
-    try:
-        send_otp_email(email, otp)
-    except Exception as e:
-        print(f"💀 [EMAIL ERROR] Failed to notify user: {e}")
-        # We return success to the UI so the user isn't confused, 
-        # but check your logs if it fails.
-        return {"status": "error", "message": "Email failed to send"}
+    # 3. Send Email (Background)
+    background_tasks.add_task(send_otp_email, email, otp)
     
     return {"status": "success", "message": "OTP Sent"}
 
@@ -847,7 +667,6 @@ def load_chat(user=Depends(get_current_user), db=Depends(get_db)):
         return {"status": "success", "chat": rows}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
-
 # --------------------------------------------------------------------
 # 🔹 CORE ANALYSIS LOGIC (AI, Chat, Reports)
 # --------------------------------------------------------------------
