@@ -213,8 +213,8 @@ MODEL_ROSTER = [
 google_sso = GoogleSSO(
     client_id=os.getenv("GOOGLE_CLIENT_ID", ""),
     client_secret=os.getenv("GOOGLE_CLIENT_SECRET", ""),
-     redirect_uri="http://localhost:10000/auth/google/callback"
-    #redirect_uri= "https://codestaticv2.onrender.com/auth/google/callback"
+    #redirect_uri="http://localhost:10000/auth/google/callback"
+    redirect_uri= "https://codestaticv2.onrender.com/auth/google/callback"
 )
 
 microsoft_sso = MicrosoftSSO(
