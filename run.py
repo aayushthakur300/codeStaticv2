@@ -621,7 +621,7 @@ def process_code(data: ProcessCodeData, request: Request):
         - IF ORIGINAL: "Low Match (Original Logic / Custom Implementation)"
 
         ------------------------------------------------------------------------
-        MODULE 2: 24-POINT VALIDATION PROTOCOL
+        MODULE 2: 23-POINT VALIDATION PROTOCOL
         ------------------------------------------------------------------------
         1. **SYNTAX & COMPILATION (CRITICAL)**
            - Semicolons, Brackets, Typos.
@@ -639,11 +639,11 @@ def process_code(data: ProcessCodeData, request: Request):
         8. **DSA INTEGRITY (Data Structures)**
            - Linked Lists, Arrays (Bounds), Stacks.
         9. **SECURITY RISKS**
-           - Injection, XSS, RCE, Buffer Overflow, Secrets Exposure.
+           - Buffer Overflow, Injection, Secrets.
         10. **CONCURRENCY (Thread Safety)**
         11. **I/O & FILE HANDLING**
         12. **CONFIGURATION & ENVIRONMENT**
-           -  Global Namespace Pollution.
+            - Global Namespace Pollution.
         13. **MATH & ALGORITHMIC ACCURACY**
         14. **INTENT vs IMPLEMENTATION**
         15. **MANDATORY INDENTATION (Python Only)**
@@ -655,9 +655,7 @@ def process_code(data: ProcessCodeData, request: Request):
         21. **Race Conditions**
         22. **Floating Point Precision**
         23. **Misleading Comments**
-        24. **INPUT VALIDATION & SANITIZATION (NEW - CRITICAL)**
-           - Validate user input, escape output, prevent malicious payloads.
-
+        
         INSTRUCTIONS:
         1. **DETECT**: Identify source language.
 
