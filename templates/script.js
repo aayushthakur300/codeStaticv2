@@ -152,6 +152,7 @@ async function loadLastSavedCode() {
             if(langSelect) {
                 langSelect.value = data.data.language;
             }
+            // Auto-run removed: User must manually click "Run Assessment"
         }
     } catch (err) {
         console.error("Error loading last code", err);
@@ -166,17 +167,27 @@ async function saveProject() {
     const code = el.value.trim();
     const language = document.getElementById("languageSelect") ? document.getElementById("languageSelect").value : document.getElementById("targetLang").value;
 
-    const res = await fetch("/save-project", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ projectName: name, code, language })
-    });
+    try {
+        const res = await fetch("/save-project", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            // Bundle the lastReportData snapshot with the save request!
+            body: JSON.stringify({ 
+                projectName: name, 
+                code: code, 
+                language: language,
+                report_data: typeof lastReportData !== 'undefined' ? lastReportData : null
+            })
+        });
 
-    const data = await res.json();
+        const data = await res.json();
 
-    if (data.status === "success") {
-        alert("Project saved!");
-        loadProjects();
+        if (data.status === "success") {
+            alert("Project & Analysis Snapshot saved successfully!");
+            loadProjects();
+        }
+    } catch (err) {
+        console.error("Error saving project", err);
     }
 }
 
@@ -190,16 +201,17 @@ async function loadProjects() {
 
         list.innerHTML = "";
 
+        // MONGODB FIX: Wrapped ${p.id} in quotes because Mongo IDs are strings
         data.projects.forEach(p => {
             list.innerHTML += `
                 <div class="project-item">
                     <h4>${p.project_name}</h4>
                     <div class="project-actions">
-                        <button onclick="loadProject(${p.id})">Load</button>
-                        <button onclick="favoriteProject(${p.id}, ${p.is_favorite ? 0 : 1})">
+                        <button onclick="loadProject('${p.id}')">Load</button>
+                        <button onclick="favoriteProject('${p.id}', ${p.is_favorite ? 0 : 1})">
                             ${p.is_favorite ? "Unfav" : "Fav"}
                         </button>
-                        <button onclick="deleteProject(${p.id})">Del</button>
+                        <button onclick="deleteProject('${p.id}')">Del</button>
                     </div>
                 </div>`;
         });
@@ -210,20 +222,139 @@ async function loadProjects() {
 }
 
 async function loadProject(id) {
-    const res = await fetch("/projects");
-    const data = await res.json();
+    try {
+        const res = await fetch("/projects");
+        const data = await res.json();
 
-    const project = data.projects.find(p => p.id === id);
-    if (!project) return;
+        // Match the project using the MongoDB string ID
+        const project = data.projects.find(p => p.id === id);
+        if (!project) return;
 
-    const codeInput = document.getElementById("codeInput") || document.getElementById("inputCode");
-    const langSelect = document.getElementById("languageSelect") || document.getElementById("targetLang");
+        const codeInput = document.getElementById("codeInput") || document.getElementById("inputCode");
+        const langSelect = document.getElementById("languageSelect") || document.getElementById("targetLang");
 
-    if(codeInput) {
-        codeInput.value = project.code;
-        codeInput.dispatchEvent(new Event('input'));
+        // 1. Restore original code
+        if (codeInput) {
+            codeInput.value = project.code;
+            codeInput.dispatchEvent(new Event('input'));
+        }
+        if (langSelect) {
+            langSelect.value = project.language;
+        }
+
+        // 2. OFFLINE SNAPSHOT RESTORATION
+        // If this project was saved with an analysis snapshot, restore the UI instantly!
+        if (project.report_data) {
+            console.log("Restoring saved analysis state offline...");
+            const report = project.report_data;
+            lastReportData = report; // Re-bind it so PDF downloads still work!
+
+            // Restore Output Code
+            const outputBox = document.getElementById('outputCode');
+            if (outputBox) {
+                outputBox.value = report.final_code || "// No fix generated";
+                updateLineNumbers('outputCode', 'outputLines');
+            }
+
+            // Restore Badges & Scores
+            const detectedBadge = document.getElementById('detectedLang');
+            const integrityBadge = document.getElementById('integrityCheck');
+            const qualityScoreDisplay = document.getElementById('qualityScoreDisplay'); 
+            const plagiarismCheck = document.getElementById('plagiarismCheck');
+            const complianceStatus = document.getElementById('complianceStatus');
+
+            if (detectedBadge) detectedBadge.innerText = report.detected_language || project.language;
+            if (integrityBadge) integrityBadge.innerText = "Integrity: " + (report.integrity_check || "--");
+            if (qualityScoreDisplay) qualityScoreDisplay.innerHTML = `<i class="fas fa-star"></i> Quality Score: ${report.quality_score || 0}/100`;
+            
+            if (plagiarismCheck) {
+                plagiarismCheck.innerHTML = `<i class="fas fa-shield-alt"></i> Plagiarism Check: ${report.plagiarism_check || "N/A"}`;
+                plagiarismCheck.className = (report.plagiarism_check && report.plagiarism_check.toLowerCase().includes("high match")) 
+                    ? 'plagiarism-high' : 'plagiarism-low';
+            }
+
+            // Restore Critical Error Log Table
+            const errorTableBody = document.querySelector('#errorTable tbody');
+            let errorCount = 0;
+            if (report.error_table && report.error_table.length > 0) {
+                errorCount = report.error_table.length;
+                if(errorTableBody) {
+                    errorTableBody.innerHTML = "";
+                    report.error_table.forEach(err => {
+                        errorTableBody.innerHTML += `<tr><td><strong>${err.line}</strong></td><td><strong>${err.error}</strong></td></tr>`;
+                    });
+                }
+            } else if (errorTableBody) {
+                errorTableBody.innerHTML = `<tr><td colspan="2">No critical errors found.</td></tr>`;
+            }
+
+            // Restore Line-by-Line Explanation Table
+            const explanationTableBody = document.querySelector('#explanationTable tbody');
+            if (report.code_explanation && report.code_explanation.length > 0) {
+                if(explanationTableBody) {
+                    explanationTableBody.innerHTML = "";
+                    report.code_explanation.forEach(item => {
+                        explanationTableBody.innerHTML += `<tr><td><strong>${item.code}</strong></td><td><strong>${item.explanation}</strong></td></tr>`;
+                    });
+                }
+            }
+
+            // Restore Time & Space Complexity
+            if (report.complexity) {
+                const t = report.complexity.time;
+                const s = report.complexity.space;
+                
+                if(t && document.getElementById('timeBest')) {
+                    document.getElementById('timeBest').innerHTML = `<strong>${t.best}</strong>`;
+                    document.getElementById('timeAvg').innerHTML = `<strong>${t.average}</strong>`;
+                    document.getElementById('timeWorst').innerHTML = `<strong>${t.worst}</strong>`;
+                    if(document.getElementById('timeDesc')) document.getElementById('timeDesc').innerHTML = `<strong>${t.desc}</strong>`;
+                }
+                if(s && document.getElementById('spaceBest')) {
+                    document.getElementById('spaceBest').innerHTML = `<strong>${s.best}</strong>`;
+                    document.getElementById('spaceAvg').innerHTML = `<strong>${s.average}</strong>`;
+                    document.getElementById('spaceWorst').innerHTML = `<strong>${s.worst}</strong>`;
+                    if(document.getElementById('spaceDesc')) document.getElementById('spaceDesc').innerHTML = `<strong>${s.desc}</strong>`;
+                }
+            }
+
+            // Restore Deployment Sentinel (CI/CD) Status
+            const score = report.quality_score || 0;
+            const passed = score >= 70;
+            const ciBadge = document.getElementById('ciStatusBadge');
+            const ciText = document.getElementById('ciStatusText');
+            const ciConsole = document.getElementById('ciConsoleOutput');
+
+            if (ciBadge) {
+                ciBadge.innerText = passed ? "PASSED" : "FAILED";
+                ciBadge.className = passed ? "ci-badge ci-pass" : "ci-badge ci-fail";
+                ciBadge.style.border = "none";
+                ciBadge.style.color = passed ? "#22c55e" : "#ef4444";
+                
+                let consoleHtml = `$ codestatic-ci --verify<br>`;
+                if (passed) {
+                    ciText.innerHTML = `Build Allowed. Quality Score <b>${score}</b> passed threshold (70).`;
+                    consoleHtml += `<span style="color:#22c55e">> SUCCESS: Code passed deployment gates.</span><br>`;
+                    consoleHtml += errorCount > 0 ? `<span style="color:#eab308">> WARNING: ${errorCount} Errors (Non-blocking).</span>` : `<span style="color:#22c55e">> CLEAN BUILD.</span>`;
+                } else {
+                    ciText.innerHTML = `Build Blocked. Quality Score <b>${score}</b> is too low.`;
+                    consoleHtml += `<span style="color:#ef4444">> FATAL: Score ${score} < 70.</span><br>`;
+                    consoleHtml += `<span style="color:#ef4444">> EXIT CODE 1 (Build Aborted)</span>`;
+                }
+                if(ciConsole) ciConsole.innerHTML = consoleHtml;
+            }
+
+            if(complianceStatus) {
+                 complianceStatus.innerHTML = passed ? `<i class="fas fa-check-circle"></i> Compliance: PASS` : `<i class="fas fa-exclamation-triangle"></i> Compliance: FAIL`;
+                 complianceStatus.className = passed ? "compliance-pass" : "compliance-fail";
+            }
+        } else {
+            console.log("No snapshot found. Only raw code restored.");
+        }
+
+    } catch (err) {
+        console.error("Error loading project:", err);
     }
-    if(langSelect) langSelect.value = project.language;
 }
 
 async function favoriteProject(id, fav) {
@@ -245,7 +376,6 @@ async function deleteProject(id) {
     });
     loadProjects();
 }
-
 // ==========================================
 // 4. CHAT SYSTEM
 // ==========================================

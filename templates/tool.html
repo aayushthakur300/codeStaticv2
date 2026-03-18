@@ -130,8 +130,8 @@
     <div class="feedback-card">
         <h3><i class="fas fa-comment-dots" style="color:#ef4444;"></i> User Feedback</h3>
         
-        <label style="font-size:0.9rem; color:#94a3b8; display:block; margin-bottom:5px;">Your Experience</label>
-        <textarea id="feedbackMsg" class="feedback-input" style="height:100px;" placeholder="Tell us what you think..."></textarea>
+        <label style="font-size:0.9rem; color:#94a3b8; display:block; margin-bottom:5px; margin-top:15px;">Your Experience *</label>
+        <textarea id="feedbackMsg" class="feedback-input" style="height:100px;" placeholder="Tell us what you think..." required></textarea>
         
         <label style="font-size:0.9rem; color:#94a3b8; display:block; margin-bottom:5px;">Rating</label>
         <select id="feedbackRating" class="feedback-input">
@@ -146,18 +146,13 @@
         <button onclick="toggleFeedback()" class="feedback-btn btn-cancel">Close</button>
     </div>
 </div>
-
 <nav class="navbar" id="mainNav">
     <div class="nav-left">
        <div class="logo-area" style="display:flex; align-items:center;">
             <h1 id="codestaticTitle" style="margin:0;">  
                 <span class="brand-code">CODE</span><span class="brand-static">STATIC</span>
             </h1>
-            {% if user %}
-            <div class="user-badge">
-                <i class="fas fa-user-shield"></i> {{ user.email }}
-            </div>
-            {% endif %}
+            
        </div> 
     </div>
 
@@ -207,9 +202,7 @@
                 RUN <i class="fas fa-bolt"></i>
             </button>
 
-            <a href="/logout" class="btn-logout" title="Sign Out">
-                <i class="fas fa-sign-out-alt"></i>
-            </a>
+           
         </div>
         
         <button class="theme-toggle" onclick="toggleTheme()">

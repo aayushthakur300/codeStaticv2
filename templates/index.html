@@ -11,7 +11,7 @@
     <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&family=Montserrat:wght@400;600;700;800;900&display=swap" rel="stylesheet">
 
     <style>
-           /* -------------------------
+        /* -------------------------
            THEME VARIABLES
         ------------------------- */
         :root {
@@ -106,14 +106,71 @@
             border-bottom: 1px solid var(--border-color);
         }
 
-        /* THEME TOGGLE ICON STYLE */
-        #themeToggle {
+        /* THEME & UTILITY TOGGLE ICON STYLE */
+        .nav-icon-btn {
             color: var(--text-main);
             transition: color 0.4s ease;
         }
 
-        #themeToggle:hover {
+        .nav-icon-btn:hover {
             color: var(--accent);
+        }
+
+        /* MOBILE MENU SETTINGS */
+        #mobileMenu {
+            display: none;
+            background: var(--footer-bg);
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        #mobileMenu.active {
+            display: flex;
+        }
+
+        /* SPLIT SCREEN MODE SETTINGS */
+        body.split-screen-mode {
+            height: 100vh;
+            overflow: hidden;
+            padding-bottom: 0;
+        }
+
+        body.split-screen-mode > section:not(#demo) {
+            display: none;
+        }
+
+        body.split-screen-mode footer,
+        body.split-screen-mode #contact {
+            display: none;
+        }
+
+        body.split-screen-mode #demo {
+            padding-top: 80px; /* Account for navbar */
+            padding-bottom: 0;
+            height: 100vh;
+            display: flex;
+            align-items: stretch;
+        }
+
+        body.split-screen-mode #demo .max-w-6xl {
+            max-width: 100%;
+            width: 100%;
+            margin: 0;
+            padding: 0;
+            gap: 0;
+        }
+
+        body.split-screen-mode #demo .demo-content-left {
+            padding: 2rem 4rem;
+            border-right: 2px solid var(--border-color);
+            overflow-y: auto;
+            height: calc(100vh - 80px);
+        }
+
+        body.split-screen-mode #demo .code-preview {
+            border-radius: 0;
+            border: none;
+            height: calc(100vh - 80px);
+            overflow-y: auto;
         }
 
         /* HERO BUTTON */
@@ -297,14 +354,14 @@
             }
         }
     </style>
-</head>     
+</head>
 
 <body>
 
     <div class="danger-grid"></div>
 
-    <nav class="navbar-bg fixed top-0 w-full z-50 px-6 py-4">
-        <div class="max-w-7xl mx-auto flex items-center justify-between">
+    <nav class="navbar-bg fixed top-0 w-full z-50">
+        <div class="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
             <a href="#" class="text-2xl font-black tracking-tighter uppercase flex items-center gap-2">
                 <span class="text-[var(--text-main)]">Code<span class="danger-text">Static</span></span>
             </a>
@@ -316,22 +373,28 @@
                     <i class="fa-solid fa-bolt mr-1"></i> LogicProbe
                 </a>
             </div>
-
+            
             <div class="flex items-center gap-4">
-                {% if user %}
-                    <span class="text-xs text-green-400 font-mono hidden md:inline">Logged in as: {{ user.email }}</span>
-                    <button class="nav-btn" onclick="toggleFeedback()"><i class="fas fa-comment-alt"></i> Feedback</button>
-                    <a href="/logout" class="nav-btn" style="background:#ef4444; border-color:#ef4444; color:white;">
-                        <i class="fas fa-sign-out-alt"></i> Logout
-                    </a>
-                {% else %}
-                    <a href="/login" class="nav-btn"><i class="fas fa-sign-in-alt"></i> Login</a>
-                {% endif %}
+                <button id="splitToggle" aria-label="Toggle Split Screen" class="nav-icon-btn hidden md:block p-2 rounded-md text-xl" title="Toggle Split Screen Mode">
+                    <i class="fa-solid fa-table-columns"></i>
+                </button>
 
-                <button id="themeToggle" aria-label="Toggle theme" class="p-2 rounded-md text-xl">
+                <button id="themeToggle" aria-label="Toggle theme" class="nav-icon-btn p-2 rounded-md text-xl">
                     <i id="themeIcon" class="fa-solid fa-moon"></i>
                 </button>
+
+                <button id="mobileMenuBtn" aria-label="Toggle Mobile Menu" class="nav-icon-btn md:hidden p-2 rounded-md text-xl">
+                    <i class="fa-solid fa-bars"></i>
+                </button>
             </div>
+        </div>
+
+        <div id="mobileMenu" class="flex-col w-full px-6 py-4 gap-4 font-bold text-sm uppercase tracking-widest text-[var(--text-main)]">
+            <a href="#features" class="hover:text-red-500 transition duration-300 block py-2">Features</a>
+            <a href="#demo" class="hover:text-red-500 transition duration-300 block py-2">Analysis</a>
+            <a href="/logicprobe" target="_blank" class="text-red-500 hover:text-red-400 transition duration-300 block py-2">
+                <i class="fa-solid fa-bolt mr-1"></i> LogicProbe
+            </a>
         </div>
     </nav>
 
@@ -518,7 +581,7 @@
     <section id="demo" class="py-24 relative overflow-hidden">
         <div class="max-w-6xl mx-auto px-6 grid md:grid-cols-2 gap-12 items-center">
 
-            <div>
+            <div class="demo-content-left">
                 <h2 class="text-3xl font-bold mb-6 text-[var(--text-main)]">Supreme AI <span
                         class="text-red-500">LogicProbe</span></h2>
                 <p class="text-[var(--text-muted)] text-lg mb-6 leading-relaxed font-bold">
@@ -592,7 +655,7 @@
     <footer class="fixed bottom-0 w-full z-60">
         <div class="max-w-7xl mx-auto px-6">
             <p class="copyright-text">
-                © 2025 CodeStatic • All Rights Reserved • Developed by Aayush Thakur
+                © 2026 CodeStatic • All Rights Reserved • Developed by Aayush Thakur
             </p>
         </div>
     </footer>
@@ -633,8 +696,40 @@
             });
             initTheme(); // Initialize theme on load
         }
+
+        // --- MOBILE MENU LOGIC ---
+        const mobileMenuBtn = document.getElementById('mobileMenuBtn');
+        const mobileMenu = document.getElementById('mobileMenu');
+        
+        if (mobileMenuBtn && mobileMenu) {
+            mobileMenuBtn.addEventListener('click', () => {
+                mobileMenu.classList.toggle('active');
+            });
+        }
+
+        // --- SPLIT SCREEN TOGGLE LOGIC ---
+        const splitToggle = document.getElementById('splitToggle');
+        
+        if (splitToggle) {
+            splitToggle.addEventListener('click', () => {
+                document.body.classList.toggle('split-screen-mode');
+                
+                // Toggle icon for visual feedback
+                const icon = splitToggle.querySelector('i');
+                if(document.body.classList.contains('split-screen-mode')) {
+                    icon.classList.remove('fa-table-columns');
+                    icon.classList.add('fa-compress'); // Show collapse icon when in split mode
+                    
+                    // Smoothly scroll down to the active workspace area
+                    document.getElementById('demo').scrollIntoView({ behavior: 'smooth' });
+                } else {
+                    icon.classList.remove('fa-compress');
+                    icon.classList.add('fa-table-columns');
+                }
+            });
+        }
     </script>
 
 </body>
 
-</html> 
+</html>
