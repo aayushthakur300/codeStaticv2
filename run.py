@@ -1,4 +1,3 @@
-# 4th version
 import sys
 import traceback
 import os
@@ -25,15 +24,21 @@ from fastapi.responses import JSONResponse, Response, HTMLResponse, RedirectResp
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
-from pydantic import BaseModel, ConfigDict
+
+# 🛡️ SECURITY INJECTIONS: Added Field and field_validator for input capping and XSS prevention
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 from fpdf import FPDF, XPos, YPos
 
 # MongoDB Integration
 import pymongo
 from bson.objectid import ObjectId
+from bson.errors import InvalidId # 🛡️ SECURITY: Prevents DB crashes on fake IDs
 
 # Email Libraries
 from fastapi_mail import FastMail, MessageSchema, ConnectionConfig, MessageType
+
+# 🛡️ SECURITY INJECTIONS: Bleach for sanitizing HTML/JS payloads
+import bleach
 
 # --- 💀 SILENT KILLER DETECTION: GLOBAL CRASH HANDLER ---
 def crash_handler(exctype, value, tb):
@@ -59,13 +64,16 @@ app = FastAPI(title="CodeStatic AI (Enterprise SaaS)")
 def health_check():
     return {"status": "ok"}
 
-# SECURITY: Session Middleware, OTP, & OAuth have been completely stripped.
-
+# 🛡️ SECURITY UPGRADE: CORS Lockdown. No more "*" wildcard.
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=[
+        "http://localhost:3000",
+        "http://127.0.0.1:3000",
+        "https://codestatic2-0.onrender.com"
+    ],
     allow_credentials=True,
-    allow_methods=["*"],
+    allow_methods=["GET", "POST", "DELETE", "OPTIONS"], 
     allow_headers=["*"],
 )
 
@@ -204,17 +212,24 @@ def get_current_user():
     return {"email": "anonymous@codestatic.ai", "provider": "guest"}
 
 # --------------------------------------------------------------------
-# 🔹 PYDANTIC MODELS
+# 🔹 PYDANTIC MODELS (🛡️ SECURITY UPGRADED)
 # --------------------------------------------------------------------
 class CodeData(BaseModel):
-    code: str
-    language: str
+    # 🛡️ CAP MEMORY EXPLOITS: Limit code submission sizes to 50k chars
+    code: str = Field(..., max_length=50000)
+    language: str = Field(..., max_length=50)
 
 class ProjectData(BaseModel):
-    projectName: str
-    code: str
-    language: str
+    projectName: str = Field(..., max_length=150)
+    code: str = Field(..., max_length=50000)
+    language: str = Field(..., max_length=50)
     report_data: Optional[dict] = None  # <-- Added this field
+
+    # 🛡️ XSS SHIELD: Sanitize the project name before it hits DB
+    @field_validator('projectName')
+    @classmethod
+    def sanitize_name(cls, value: str) -> str:
+        return bleach.clean(value)
 
 class FavoriteData(BaseModel):
     id: str
@@ -224,16 +239,28 @@ class DeleteData(BaseModel):
     id: str
 
 class ChatData(BaseModel):
-    message: str
-    code_context: Optional[str] = ""
+    message: str = Field(..., max_length=3000)
+    code_context: Optional[str] = Field(default="", max_length=50000)
+
+    # 🛡️ XSS SHIELD: Sanitize the AI chat message input
+    @field_validator('message')
+    @classmethod
+    def sanitize_chat(cls, value: str) -> str:
+        return bleach.clean(value)
 
 class FeedbackData(BaseModel):
-    message: str
+    message: str = Field(..., max_length=2000)
     rating: int
 
+    # 🛡️ XSS SHIELD: Sanitize the user feedback
+    @field_validator('message')
+    @classmethod
+    def sanitize_msg(cls, value: str) -> str:
+        return bleach.clean(value)
+
 class ProcessCodeData(BaseModel):
-    code: str
-    target_lang: str
+    code: str = Field(..., max_length=50000)
+    target_lang: str = Field(..., max_length=50)
     candidate_id: Optional[str] = "N/A"
     is_ci_build: Optional[bool] = False 
 
@@ -381,8 +408,9 @@ async def submit_feedback(
 
         return {"status": "success"}
     except Exception as e:
-        print(f"Feedback Error: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        # 🛡️ SECURITY: Mask Internal DB Errors from Hackers
+        print(f"CRITICAL ERROR in /submit-feedback: {e}")
+        raise HTTPException(status_code=500, detail="Internal server error. Please try again later.")
 
 @app.post("/save-code")
 def save_code(data: CodeData, user=Depends(get_current_user), db=Depends(get_db)):
@@ -395,7 +423,8 @@ def save_code(data: CodeData, user=Depends(get_current_user), db=Depends(get_db)
         })
         return {"status": "success", "id": str(result.inserted_id)}
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        print(f"CRITICAL ERROR in /save-code: {e}")
+        raise HTTPException(status_code=500, detail="Internal server error. Please try again later.")
 
 @app.get("/load-last-code")
 def load_last_code(user=Depends(get_current_user), db=Depends(get_db)):
@@ -410,7 +439,8 @@ def load_last_code(user=Depends(get_current_user), db=Depends(get_db)):
         if 'created_at' in row: row['created_at'] = str(row['created_at'])
         return {"status": "success", "data": row}
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        print(f"CRITICAL ERROR in /load-last-code: {e}")
+        raise HTTPException(status_code=500, detail="Internal server error. Please try again later.")
 
 @app.post("/save-project")
 def save_project(data: ProjectData, user=Depends(get_current_user), db=Depends(get_db)):
@@ -426,7 +456,8 @@ def save_project(data: ProjectData, user=Depends(get_current_user), db=Depends(g
         })
         return {"status": "success", "id": str(result.inserted_id)}
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        print(f"CRITICAL ERROR in /save-project: {e}")
+        raise HTTPException(status_code=500, detail="Internal server error. Please try again later.")
     
 @app.get("/projects")
 def get_projects(user=Depends(get_current_user), db=Depends(get_db)):
@@ -437,27 +468,42 @@ def get_projects(user=Depends(get_current_user), db=Depends(get_db)):
             if 'created_at' in r: r['created_at'] = str(r['created_at'])
         return {"status": "success", "projects": rows}
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        print(f"CRITICAL ERROR in /projects: {e}")
+        raise HTTPException(status_code=500, detail="Internal server error. Please try again later.")
 
 @app.post("/favorite-project")
 def favorite_project(data: FavoriteData, user=Depends(get_current_user), db=Depends(get_db)):
     try:
+        # 🛡️ SECURITY: Prevent DB crash on fake ObjectId injections
+        if not ObjectId.is_valid(data.id):
+            raise HTTPException(status_code=400, detail="Invalid Project ID format.")
+
         val = 1 if data.fav else 0
         db.projects.update_one(
             {"_id": ObjectId(data.id), "user_email": user['email']},
             {"$set": {"is_favorite": val}}
         )
         return {"status": "success"}
+    except HTTPException:
+        raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        print(f"CRITICAL ERROR in /favorite-project: {e}")
+        raise HTTPException(status_code=500, detail="Internal server error. Please try again later.")
 
 @app.post("/delete-project")
 def delete_project(data: DeleteData, user=Depends(get_current_user), db=Depends(get_db)):
     try:
+        # 🛡️ SECURITY: Prevent DB crash on fake ObjectId injections
+        if not ObjectId.is_valid(data.id):
+            raise HTTPException(status_code=400, detail="Invalid Project ID format.")
+
         db.projects.delete_one({"_id": ObjectId(data.id), "user_email": user['email']})
         return {"status": "success"}
+    except HTTPException:
+        raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        print(f"CRITICAL ERROR in /delete-project: {e}")
+        raise HTTPException(status_code=500, detail="Internal server error. Please try again later.")
 
 @app.get("/load-chat")
 def load_chat(user=Depends(get_current_user), db=Depends(get_db)):
@@ -468,7 +514,8 @@ def load_chat(user=Depends(get_current_user), db=Depends(get_db)):
             if 'created_at' in r: r['created_at'] = str(r['created_at'])
         return {"status": "success", "chat": rows}
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        print(f"CRITICAL ERROR in /load-chat: {e}")
+        raise HTTPException(status_code=500, detail="Internal server error. Please try again later.")
 
 # --------------------------------------------------------------------
 # 🔹 CORE ANALYSIS LOGIC (AI, Chat, Reports)
@@ -516,8 +563,8 @@ def generate_pdf(data: ReportData):
         return Response(content=pdf_buffer.getvalue(), media_type="application/pdf", headers={"Content-Disposition": f"attachment; filename={download_filename}"})
 
     except Exception as e:
-        print(f"PDF Error: {e}")
-        raise HTTPException(status_code=500, detail=f"PDF Generation Failed: {str(e)}")
+        print(f"CRITICAL ERROR in /generate_pdf: {e}")
+        raise HTTPException(status_code=500, detail="Internal server error. Please try again later.")
 
 @app.post("/ai_chat")
 def ai_chat(data: ChatData, request: Request, db=Depends(get_db)):
@@ -565,8 +612,11 @@ def ai_chat(data: ChatData, request: Request, db=Depends(get_db)):
 
         return {"status": "success", "reply": ai_reply}
 
+    except HTTPException:
+        raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        print(f"CRITICAL ERROR in /ai_chat: {e}")
+        raise HTTPException(status_code=500, detail="Internal server error. Please try again later.")
 
 @app.post("/process_code")
 def process_code(data: ProcessCodeData, request: Request):
@@ -643,7 +693,7 @@ def process_code(data: ProcessCodeData, request: Request):
         10. **CONCURRENCY (Thread Safety)**
         11. **I/O & FILE HANDLING**
         12. **CONFIGURATION & ENVIRONMENT**
-            - Global Namespace Pollution.
+             - Global Namespace Pollution.
         13. **MATH & ALGORITHMIC ACCURACY**
         14. **INTENT vs IMPLEMENTATION**
         15. **MANDATORY INDENTATION (Python Only)**
@@ -849,8 +899,11 @@ def process_code(data: ProcessCodeData, request: Request):
 
         return final_response
 
+    except HTTPException:
+        raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        print(f"CRITICAL ERROR in /process_code: {e}")
+        raise HTTPException(status_code=500, detail="Internal server error. Please try again later.")
 
 if __name__ == "__main__":
     import uvicorn
