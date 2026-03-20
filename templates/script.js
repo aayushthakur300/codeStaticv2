@@ -1070,12 +1070,17 @@ async function loadProject(id) {
             if (integrityBadge) integrityBadge.innerText = "Integrity: " + (report.integrity_check || "--");
             if (qualityScoreDisplay) qualityScoreDisplay.innerHTML = `<i class="fas fa-star"></i> Quality Score: ${report.quality_score || 0}/100`;
             
+            // if (plagiarismCheck) {
+            //     plagiarismCheck.innerHTML = `<i class="fas fa-shield-alt"></i> Plagiarism Check: ${report.plagiarism_check || "N/A"}`;
+            //     plagiarismCheck.className = (report.plagiarism_check && report.plagiarism_check.toLowerCase().includes("high match")) 
+            //         ? 'plagiarism-high' : 'plagiarism-low';
+            // }
             if (plagiarismCheck) {
-                plagiarismCheck.innerHTML = `<i class="fas fa-shield-alt"></i> Plagiarism Check: ${report.plagiarism_check || "N/A"}`;
+                // UPDATE: Changed to SourceSense Monitor
+                plagiarismCheck.innerHTML = `<i class="fas fa-shield-alt"></i> SourceSense Monitor: ${report.plagiarism_check || "N/A"}`;
                 plagiarismCheck.className = (report.plagiarism_check && report.plagiarism_check.toLowerCase().includes("high match")) 
                     ? 'plagiarism-high' : 'plagiarism-low';
             }
-
             // Restore Critical Error Log Table
             const errorTableBody = document.querySelector('#errorTable tbody');
             let errorCount = 0;
@@ -1377,8 +1382,15 @@ async function handleAssessment() {
         if (qualityScoreDisplay) qualityScoreDisplay.innerHTML = `<i class="fas fa-star"></i> Quality Score: ${data.quality_score || 0}/100`;
         
         // Plagiarism
+        // if (plagiarismCheck) {
+        //     plagiarismCheck.innerHTML = `<i class="fas fa-shield-alt"></i> Plagiarism Check: ${data.plagiarism_check || "N/A"}`;
+        //     plagiarismCheck.className = (data.plagiarism_check && data.plagiarism_check.toLowerCase().includes("high match")) 
+        //         ? 'plagiarism-high' : 'plagiarism-low';
+        // }
+        // SourceSense Monitor (Formerly Plagiarism)
         if (plagiarismCheck) {
-            plagiarismCheck.innerHTML = `<i class="fas fa-shield-alt"></i> Plagiarism Check: ${data.plagiarism_check || "N/A"}`;
+            // UPDATE: Changed to SourceSense Monitor
+            plagiarismCheck.innerHTML = `<i class="fas fa-shield-alt"></i> SourceSense Monitor: ${data.plagiarism_check || "N/A"}`;
             plagiarismCheck.className = (data.plagiarism_check && data.plagiarism_check.toLowerCase().includes("high match")) 
                 ? 'plagiarism-high' : 'plagiarism-low';
         }

@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+<!-- <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -465,4 +465,533 @@
 </script>
 
 </body> 
-</html> 
+</html>  -->
+
+
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CodeStatic - Enterprise Workspace</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/static/style.css">
+    
+    <style>
+        /* --- INTERNAL STYLES FOR COMPONENT OVERRIDES --- */
+        
+        /* CI/CD Panel Styles */
+        .ci-panel-content {
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+        }
+        .ci-badge {
+            font-size: 1.5rem;
+            font-weight: 900;
+            padding: 10px 30px;
+            border-radius: 8px;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            border: 2px solid transparent;
+            display: inline-block;
+        }
+        .ci-pass {
+            background: rgba(34, 197, 94, 0.1);
+            color: #22c55e;
+            border-color: #22c55e;
+            box-shadow: 0 0 15px rgba(34, 197, 94, 0.3);
+        }
+        .ci-fail {
+            background: rgba(239, 68, 68, 0.1);
+            color: #ef4444;
+            border-color: #ef4444;
+            box-shadow: 0 0 15px rgba(239, 68, 68, 0.3);
+            animation: pulse-red 2s infinite;
+        }
+        .ci-console {
+            background: #000;
+            color: #ccc;
+            font-family: 'Consolas', monospace;
+            padding: 15px;
+            border-radius: 6px;
+            width: 100%;
+            text-align: left;
+            font-size: 0.85rem;
+            border: 1px solid #333;
+            margin-top: 10px;
+        }
+        @keyframes pulse-red {
+            0% { box-shadow: 0 0 5px rgba(239, 68, 68, 0.3); }
+            50% { box-shadow: 0 0 20px rgba(239, 68, 68, 0.6); }
+            100% { box-shadow: 0 0 5px rgba(239, 68, 68, 0.3); }
+        }
+
+        /* --- AUTH & FEEDBACK STYLES --- */
+        .user-badge {
+            display: flex; align-items: center; gap: 8px;
+            font-size: 0.85rem; font-weight: 600; color: #22c55e;
+            background: rgba(34, 197, 94, 0.1); padding: 5px 12px; border-radius: 20px;
+            border: 1px solid rgba(34, 197, 94, 0.2); margin-left: 15px;
+            font-family: 'Inter', sans-serif;
+        }
+        
+        .btn-logout {
+            background: #ef4444; color: white; border: none;
+            padding: 8px 12px; border-radius: 4px; cursor: pointer;
+            transition: 0.2s; text-decoration: none; display: inline-flex; align-items: center;
+        }
+        .btn-logout:hover { background: #dc2626; }
+
+        /* Feedback Modal Styles */
+        .modal-overlay {
+            display: none;
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0, 0, 0, 0.8); backdrop-filter: blur(5px);
+            z-index: 2000; justify-content: center; align-items: center;
+            opacity: 0; transition: opacity 0.3s ease;
+        }
+        .modal-show { display: flex !important; opacity: 1; }
+
+        .feedback-card {
+            background: #1e293b; padding: 2.5rem; border-radius: 12px;
+            width: 90%; max-width: 400px; border: 1px solid #334155;
+            box-shadow: 0 20px 50px rgba(0,0,0,0.5); position: relative;
+            transform: translateY(20px); transition: transform 0.3s ease;
+        }
+        .modal-show .feedback-card { transform: translateY(0); }
+
+        .feedback-card h3 {
+            margin-top: 0; color: #f8fafc; font-size: 1.5rem;
+            text-align: center; margin-bottom: 20px; font-family: 'Inter', sans-serif;
+        }
+        .feedback-input {
+            width: 100%; padding: 12px; background: #0f172a;
+            border: 1px solid #334155; border-radius: 6px;
+            color: #f8fafc; font-family: 'Inter', sans-serif;
+            margin-bottom: 15px; box-sizing: border-box; resize: none;
+        }
+        .feedback-input:focus { border-color: #ef4444; outline: none; }
+        .feedback-btn {
+            width: 100%; padding: 12px; border: none; border-radius: 6px;
+            cursor: pointer; font-weight: bold; font-size: 1rem; transition: opacity 0.2s;
+        }
+        .btn-submit { background: #22c55e; color: white; margin-bottom: 10px; }
+        .btn-cancel { background: transparent; border: 1px solid #334155; color: #94a3b8; }
+        .btn-cancel:hover { border-color: #f8fafc; color: #f8fafc; }
+
+        /* --- MOBILE RESPONSIVENESS (FIT TO SCREEN) --- */
+        @media (max-width: 768px) {
+            #mainNav {
+                flex-direction: column;
+                height: auto;
+                padding: 15px 10px;
+                gap: 15px;
+            }
+            .nav-right, .control-group {
+                flex-wrap: wrap;
+                justify-content: center;
+                width: 100%;
+                gap: 10px;
+            }
+            #targetLang {
+                width: auto;
+                max-width: 130px;
+                font-size: 0.9rem;
+            }
+            .main-container {
+                flex-direction: column !important;
+                height: auto !important;
+                overflow-y: visible !important;
+            }
+            .col-left, .col-right {
+                width: 100% !important;
+                height: auto !important;
+                min-height: 50vh;
+            }
+            .gutter {
+                display: none !important; /* Hide the drag resizer on mobile */
+            }
+            /* Keep floating boxes (Chat & Projects) inside the frame */
+            #chatWidget, #projectsPanel {
+                width: 90% !important;
+                max-width: 400px;
+                left: 0 !important;
+                right: 0 !important;
+                margin: 0 auto !important; /* Center it */
+                bottom: 10px !important;
+                top: auto !important;
+                max-height: 75vh;
+            }
+            .feedback-card {
+                width: 95%;
+                padding: 1.5rem;
+            }
+            .analysis-header-group {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 10px;
+            }
+            .header-top {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+        }
+    </style>
+</head>
+<body class="dangerous-theme">
+
+<div id="loadingOverlay" class="loading-overlay">
+    <div class="loader-content">
+        <i class="fas fa-microchip fa-spin fa-3x"></i>
+        <h2>ASSESSMENT PROCESSING...</h2>
+        <p>Analyzing Syntax • Checking Logic • Grading Quality</p>
+    </div>
+</div>
+
+<div id="feedbackModal" class="modal-overlay">
+    <div class="feedback-card">
+        <h3><i class="fas fa-comment-dots" style="color:#ef4444;"></i> User Feedback</h3>
+        
+        <label style="font-size:0.9rem; color:#94a3b8; display:block; margin-bottom:5px; margin-top:15px;">Your Experience *</label>
+        <textarea id="feedbackMsg" class="feedback-input" style="height:100px;" placeholder="Tell us what you think..." required></textarea>
+        
+        <label style="font-size:0.9rem; color:#94a3b8; display:block; margin-bottom:5px;">Rating</label>
+        <select id="feedbackRating" class="feedback-input">
+            <option value="5">⭐⭐⭐⭐⭐ Excellent</option>
+            <option value="4">⭐⭐⭐⭐ Good</option>
+            <option value="3">⭐⭐⭐ Average</option>
+            <option value="2">⭐⭐ Poor</option>
+            <option value="1">⭐ Terrible</option>
+        </select>
+
+        <button onclick="submitFeedback()" class="feedback-btn btn-submit">Submit Feedback</button>
+        <button onclick="toggleFeedback()" class="feedback-btn btn-cancel">Close</button>
+    </div>
+</div>
+<nav class="navbar" id="mainNav">
+    <div class="nav-left">
+       <div class="logo-area" style="display:flex; align-items:center;">
+            <h1 id="codestaticTitle" style="margin:0;">  
+                <span class="brand-code">CODE</span><span class="brand-static">STATIC</span>
+            </h1>
+            
+       </div> 
+    </div>
+
+    <div class="nav-right">
+        <div class="control-group">
+            <button class="ai-chat-btn" id="projectsButton" title="My Projects">
+                <i class="fas fa-folder"></i> 
+            </button>
+
+            <button class="ai-chat-btn" onclick="toggleFeedback()" title="Feedback">
+                <i class="fas fa-comment-alt"></i>
+            </button>
+
+            <button class="ai-chat-btn" onclick="toggleChat()" title="AI Code Assistant">
+                ✨ 
+            </button>
+            
+            <button class="pdf-nav-btn" onclick="downloadPdf()" title="Download Report as PDF">
+                <i class="fas fa-file-pdf"></i>
+            </button>
+
+            <select id="targetLang">
+                <option value="Python">Python</option>
+                <option value="JavaScript">JavaScript</option>
+                <option value="Java">Java</option>
+                <option value="C">C</option>
+                <option value="C++">C++</option>
+                <option value="C#">C#</option>
+                <option value="Go">Go</option>
+                <option value="Rust">Rust</option>
+                <option value="Swift">Swift</option>
+                <option value="Kotlin">Kotlin</option>
+                <option value="TypeScript">TypeScript</option>
+                <option value="Ruby">Ruby</option>
+                <option value="R">R</option>
+                <option value="Perl">Perl</option>
+                <option value="Elixir">Elixir</option>
+                <option value="Dart">Dart</option>
+                <option value="Shell">Shell (Bash)</option>
+                <option value="PHP">PHP</option>
+                <option value="SQL">SQL</option>
+                <option value="Lua">Lua</option>
+                <option value="MATLAB">MATLAB</option>
+            </select>
+            
+            <button id="convertBtn" onclick="handleAssessment()">
+                RUN <i class="fas fa-bolt"></i>
+            </button>
+
+           
+        </div>
+        
+        <button class="theme-toggle" onclick="toggleTheme()">
+            <i class="fas fa-moon" id="themeIcon"></i>
+        </button>
+    </div>
+</nav>
+
+<div id="chatWidget" class="chat-widget">
+    <div class="chat-header">
+        <span>✨ CodeStatic Assistant</span>
+        <button onclick="toggleChat()"><i class="fas fa-times"></i></button>
+    </div>
+    <div class="chat-body" id="chatBody">
+        <div class="chat-msg ai-msg">Hello! I am your AI coding assistant. How can I help you optimize your code today?</div>
+    </div>
+    <div class="chat-input-area">
+        <textarea id="chatInput" placeholder="Ask about the code... (Shift+Enter for new line)" onkeypress="handleChatEnter(event)"></textarea>
+        <button onclick="sendChatMessage()"><i class="fas fa-paper-plane"></i></button>
+    </div>
+</div>
+
+<div id="projectsPanel" class="projects-panel" style="display:none;">
+    <div class="panel-header">
+        <span><i class="fas fa-archive"></i> Saved Projects</span>
+        <button onclick="document.getElementById('projectsPanel').style.display='none'" style="background:none; border:none; color:white; cursor:pointer;">
+            <i class="fas fa-times"></i>
+        </button>
+    </div>
+    <div class="panel-body" id="projectList">
+        </div>
+    <div class="panel-footer" style="padding: 10px; border-top: 1px solid #333;">
+        <button id="saveProjectBtn" onclick="saveProject()" style="width: 100%; padding: 8px; cursor: pointer;">
+            <i class="fas fa-save"></i> SAVE CURRENT PROJECT
+        </button>
+    </div>
+</div>
+
+<div class="main-container" id="mainContainer">
+    
+    <div class="col-left" id="colLeft">
+        <div class="panel code-panel">
+            <div class="panel-header">
+                <span class="panel-title"><i class="fas fa-code"></i> CANDIDATE SUBMISSION</span>
+                <div style="display: flex; align-items: center; gap: 10px;">
+                    <button class="copy-btn" onclick="copyContent('inputCode')"><i class="fas fa-copy"></i> Copy</button>
+                    <span class="badge" id="detectedLang">--</span>
+                </div>
+            </div>
+            <div class="editor-wrapper">
+                <div class="line-numbers" id="inputLines">1</div>
+                <textarea id="inputCode" placeholder="// Paste candidate's code here..." 
+                    oninput="updateLineNumbers('inputCode', 'inputLines')" 
+                    onscroll="syncScroll('inputCode', 'inputLines')"></textarea>
+            </div>
+        </div>
+    </div>
+
+    <div class="gutter" id="resizeHandle"></div>
+
+    <div class="col-right" id="colRight">
+        
+        <div id="analysisReport" class="panel analysis-box">
+            <div class="analysis-header-group">
+                <div class="header-top">
+                    <span class="panel-title error-title"><i class="fas fa-bug"></i> CRITICAL ERROR LOG</span>
+                    <div style="display: flex; align-items: center; gap: 15px;">
+                        <button class="copy-btn" onclick="copyTable()"><i class="fas fa-copy"></i> Copy Log</button>
+                    </div>
+                </div>
+                
+                <div class="quality-score-bar">
+                    <span id="qualityScoreDisplay"><i class="fas fa-star-half-stroke"></i> Quality Score: --/100</span>
+                </div>
+
+                <div class="integrity-bar">
+                    <span id="integrityCheck">Integrity: --</span>
+                </div>
+                <div class="plagiarism-bar">
+                    <span id="plagiarismCheck"><i class="fas fa-shield-alt"></i> SourceSense Monitor: </span>  
+                </div>
+            </div>
+
+            <div class="table-responsive">
+                <table id="errorTable">
+                    <thead>
+                        <tr>
+                            <th style="width: 60px;">LINE</th>
+                            <th>ERROR DESCRIPTION</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr><td colspan="2" style="text-align:center; opacity:0.5; padding: 20px;">Run assessment to view errors.</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <div class="panel code-panel">
+            <div class="panel-header">
+                <span class="panel-title"><i class="fas fa-check-circle"></i> STANDARDIZED & FIXED CODE</span>
+                <div style="display: flex; align-items: center; gap: 10px;">
+                    <button class="copy-btn" onclick="copyContent('outputCode')"><i class="fas fa-copy"></i> Copy</button>
+                </div>
+            </div>
+            
+            <div class="ai-disclaimer">
+                Note: STANDARDIZED & FIXED CODE can make mistakes. Please review it before use.
+            </div>
+
+            <div class="compliance-bar">
+                <span id="complianceStatus"><i class="fas fa-clipboard-check"></i> Compliance Status: PENDING</span>
+            </div>
+
+            <div class="editor-wrapper">
+                <div class="line-numbers" id="outputLines">1</div>
+                <textarea id="outputCode" readonly placeholder="// Assessment results will appear here..." 
+                    oninput="updateLineNumbers('outputCode', 'outputLines')" 
+                    onscroll="syncScroll('outputCode', 'outputLines')"></textarea>
+            </div>
+        </div>
+
+        <div class="panel code-panel" style="min-height: 350px;">
+            <div class="panel-header">
+                <span class="panel-title"><i class="fas fa-book-open"></i> LINE-BY-LINE EXPLANATION</span>
+                <button class="copy-btn" onclick="copyExplanationTable()"><i class="fas fa-copy"></i> Copy</button>
+            </div>
+            <div class="table-responsive">
+                <table id="explanationTable" class="explanation-table">
+                    <thead>
+                        <tr>
+                            <th style="width: 30%;">CODE SNIPPET</th>
+                            <th>EXPLANATION</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr><td colspan="2" style="text-align:center; opacity:0.5; padding: 20px;">Explanation will appear here.</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <div class="panel code-panel" style="min-height: auto; height: auto;">
+            <div class="panel-header">
+                <span class="panel-title"><i class="fas fa-tachometer-alt"></i> COMPLEXITY ANALYSIS</span>
+                <button class="copy-btn" onclick="copyComplexity()"><i class="fas fa-copy"></i> Copy</button>
+            </div>
+            
+            <div id="complexityWrapper" class="complexity-container">
+                
+                <div class="complexity-group">
+                    <div class="comp-header-label">TIME COMPLEXITY</div>
+                    <div class="comp-grid">
+                        <div class="comp-mini-box">
+                            <span class="mini-label">BEST</span>
+                            <span id="timeBest" class="mini-value">--</span>
+                        </div>
+                        <div class="comp-mini-box">
+                            <span class="mini-label">AVERAGE</span>
+                            <span id="timeAvg" class="mini-value">--</span>
+                        </div>
+                        <div class="comp-mini-box">
+                            <span class="mini-label">WORST</span>
+                            <span id="timeWorst" class="mini-value">--</span>
+                        </div>
+                    </div>
+                    <p id="timeDesc" class="comp-desc-text">Analysis pending...</p>
+                </div>
+
+                <div class="complexity-group">
+                    <div class="comp-header-label">SPACE COMPLEXITY</div>
+                    <div class="comp-grid">
+                        <div class="comp-mini-box">
+                            <span class="mini-label">BEST</span>
+                            <span id="spaceBest" class="mini-value">--</span>
+                        </div>
+                        <div class="comp-mini-box">
+                            <span class="mini-label">AVERAGE</span>
+                            <span id="spaceAvg" class="mini-value">--</span>
+                        </div>
+                        <div class="comp-mini-box">
+                            <span class="mini-label">WORST</span>
+                            <span id="spaceWorst" class="mini-value">--</span>
+                        </div>
+                    </div>
+                    <p id="spaceDesc" class="comp-desc-text">Analysis pending...</p>
+                </div>
+
+            </div>
+        </div>
+
+        <div class="panel code-panel" style="min-height: auto; height: auto;">
+            <div class="panel-header">
+                <span class="panel-title"><i class="fas fa-server"></i> DEPLOYMENT SENTINEL</span>
+            </div>
+            <div class="ci-panel-content">
+                <div id="ciStatusBadge" class="ci-badge" style="border: 2px dashed #444; color: #666;">
+                    PENDING CHECK
+                </div>
+                <p id="ciStatusText" style="color: var(--text-muted); font-size: 0.9rem;">
+                    Run assessment to determine if this code is safe for production deployment.
+                </p>
+                <div class="ci-console" id="ciConsoleOutput">
+                    $ codestatic-ci --input candidate_code.py --gate strict<br>
+                    > Waiting for analysis...
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+</div>
+
+<script src="/static/script.js"></script>
+
+<script>
+    function toggleFeedback() {
+        const modal = document.getElementById('feedbackModal');
+        if (modal.classList.contains('modal-show')) {
+            modal.classList.remove('modal-show');
+            setTimeout(() => { modal.style.display = 'none'; }, 300);
+        } else {
+            modal.style.display = 'flex';
+            setTimeout(() => { modal.classList.add('modal-show'); }, 10);
+        }
+    }
+
+    async function submitFeedback() {
+        const msg = document.getElementById('feedbackMsg').value;
+        const rate = document.getElementById('feedbackRating').value;
+        const btn = document.querySelector('.btn-submit');
+
+        if(!msg.trim()) return alert("Please enter a message.");
+
+        btn.innerText = "Sending...";
+        btn.disabled = true;
+
+        try {
+            const res = await fetch('/submit-feedback', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ message: msg, rating: parseInt(rate) })
+            });
+            
+            if (res.ok) {
+                alert("Feedback sent successfully! Thank you.");
+                document.getElementById('feedbackMsg').value = ""; 
+                toggleFeedback();
+            } else {
+                alert("Error submitting feedback.");
+            }
+        } catch (e) {
+            console.error(e);
+            alert("Network error.");
+        } finally {
+            btn.innerText = "Submit Feedback";
+            btn.disabled = false;
+        }
+    }
+</script>
+
+</body> 
+</html>
