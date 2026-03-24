@@ -11,7 +11,7 @@ The system is built on a high-performance FastAPI backend with a custom "Dangero
 # ⏳ Service Initialization Instructions (Render Cold Start)
 # Due to cold start behavior on hosted backend services:
 # 1️⃣ Open the backend services first:
-# Link: https://mockshield-ai-engine.onrender.com
+# Link: https://codestatic-2-0.onrender.com
 
 ## 🧠 Why This Project Stands Out (Recruiter View)
 
